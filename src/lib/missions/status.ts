@@ -58,6 +58,11 @@ export function submissionBlockedReason(status: MissionStatus): string | null {
   return null;
 }
 
+/**
+ * Doit rester aligné sur la contrainte `check (length(btrim(contenu)) between 1
+ * and 4000)` de mission_submissions : ici c'est du confort de saisie, la borne
+ * qui compte est celle de la base.
+ */
 export const SUBMISSION_MAX_LENGTH = 4000;
 
 /** Valide le livrable saisi par le participant. Retourne le message d'erreur, ou null. */

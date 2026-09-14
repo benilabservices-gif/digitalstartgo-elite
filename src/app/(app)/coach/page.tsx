@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireCoach } from "@/lib/missions/coach";
+import { fetchParticipantNames, requireCoach } from "@/lib/missions/coach";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { formatDateTime } from "@/lib/missions/format";
@@ -8,7 +8,7 @@ interface PendingSubmissionRow {
   id: string;
   created_at: string;
   mission_progress: {
-    profiles: { business_name: string | null } | null;
+    profile_id: string;
     missions: { number: number; title: string } | null;
   } | null;
 }
@@ -18,13 +18,18 @@ export default async function CoachQueuePage() {
 
   const { data } = await supabase
     .from("mission_submissions")
-    .select(
-      "id, created_at, mission_progress(profiles(business_name), missions(number, title))"
-    )
+    .select("id, created_at, mission_progress(profile_id, missions(number, title))")
     .eq("statut", "soumis")
     .order("created_at", { ascending: true });
 
   const submissions = (data ?? []) as unknown as PendingSubmissionRow[];
+
+  // Le nom du participant passe par une fonction dédiée : les coachs n'ont pas
+  // d'accès direct en lecture à la table profiles.
+  const names = await fetchParticipantNames(
+    supabase,
+    submissions.map((submission) => submission.mission_progress?.profile_id)
+  );
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10">
@@ -41,8 +46,9 @@ export default async function CoachQueuePage() {
           <ol className="flex flex-col gap-4">
             {submissions.map((submission) => {
               const mission = submission.mission_progress?.missions;
+              const profileId = submission.mission_progress?.profile_id;
               const participant =
-                submission.mission_progress?.profiles?.business_name ?? "Participant sans nom";
+                (profileId ? names.get(profileId) : null) ?? "Participant sans nom";
               return (
                 <li
                   key={submission.id}

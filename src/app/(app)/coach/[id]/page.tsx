@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireCoach } from "@/lib/missions/coach";
+import { fetchParticipantNames, requireCoach } from "@/lib/missions/coach";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { CoachReviewForm } from "@/components/coach/CoachReviewForm";
@@ -16,7 +16,7 @@ interface SubmissionDetailRow {
   updated_at: string;
   mission_progress: {
     id: string;
-    profiles: { business_name: string | null } | null;
+    profile_id: string;
     missions: { number: number; title: string; objective: string } | null;
   } | null;
 }
@@ -47,7 +47,7 @@ export default async function CoachSubmissionPage({ params }: { params: { id: st
   const { data } = await supabase
     .from("mission_submissions")
     .select(
-      "id, contenu, statut, feedback_coach, created_at, updated_at, mission_progress(id, profiles(business_name), missions(number, title, objective))"
+      "id, contenu, statut, feedback_coach, created_at, updated_at, mission_progress(id, profile_id, missions(number, title, objective))"
     )
     .eq("id", params.id)
     .maybeSingle();
@@ -58,7 +58,13 @@ export default async function CoachSubmissionPage({ params }: { params: { id: st
 
   const submission = data as unknown as SubmissionDetailRow;
   const mission = submission.mission_progress?.missions;
-  const participant = submission.mission_progress?.profiles?.business_name ?? "Participant sans nom";
+  const names = await fetchParticipantNames(supabase, [
+    submission.mission_progress?.profile_id,
+  ]);
+  const participant =
+    (submission.mission_progress
+      ? names.get(submission.mission_progress.profile_id)
+      : null) ?? "Participant sans nom";
 
   const { data: previousData } = submission.mission_progress
     ? await supabase
