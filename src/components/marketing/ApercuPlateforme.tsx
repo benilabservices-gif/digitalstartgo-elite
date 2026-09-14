@@ -3,11 +3,15 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 
-const APERCU_ETAPES: { titre: string; statut: string; tone: "success" | "warning" | "default" }[] = [
-  { titre: "01 Diagnostic", statut: "Validé", tone: "success" },
-  { titre: "02 Offre", statut: "Validé", tone: "success" },
-  { titre: "03 Cible & Positionnement", statut: "En cours", tone: "warning" },
-  { titre: "04 Lead Magnet", statut: "À faire", tone: "default" },
+const ETAPES = [
+  "01 Diagnostic",
+  "02 Offre",
+  "03 Cible & Positionnement",
+  "04 Lead Magnet",
+  "05 Acquisition",
+  "06 Mon Funnel",
+  "07 Conversion & Relance",
+  "08 Mesure & Optimisation",
 ];
 
 export function ApercuPlateforme() {
@@ -22,19 +26,19 @@ export function ApercuPlateforme() {
       </p>
       <div className="mx-auto max-w-2xl rounded-xl bg-white p-6 text-dark shadow-lg">
         <div className="mb-6">
-          <ProgressBar value={25} label="Progression globale" />
+          <ProgressBar value={0} label="Progression globale" />
         </div>
         <div className="mb-6">
-          <Card title="Mission 03">
-            <p className="mb-3">Clarifier ma cible et mon positionnement</p>
-            <Badge tone="warning">En cours</Badge>
+          <Card title="Mission 01">
+            <p className="mb-3">Réaliser mon diagnostic funnel</p>
+            <Badge tone="default">À faire</Badge>
           </Card>
         </div>
         <ul className="flex flex-col gap-3">
-          {APERCU_ETAPES.map((etape) => (
-            <li key={etape.titre} className="flex items-center justify-between">
-              <span>{etape.titre}</span>
-              <Badge tone={etape.tone}>{etape.statut}</Badge>
+          {ETAPES.map((etape) => (
+            <li key={etape} className="flex items-center justify-between">
+              <span>{etape}</span>
+              <Badge tone="default">À faire</Badge>
             </li>
           ))}
         </ul>

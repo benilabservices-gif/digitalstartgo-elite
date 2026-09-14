@@ -39,7 +39,7 @@ export function Pricing() {
         <h2 className="text-center text-3xl font-extrabold text-dark sm:text-4xl">Tarifs</h2>
         <ExempleBadge />
       </div>
-      <div className="grid gap-6 sm:grid-cols-3">
+      <div className="grid items-start gap-6 sm:grid-cols-3">
         {PALIERS.map((palier) => (
           <div
             key={palier.nom}

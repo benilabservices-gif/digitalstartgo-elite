@@ -25,7 +25,7 @@ export function VirtuoseAI() {
           </div>
         ))}
       </div>
-      <p className="mt-8 text-center text-xs uppercase tracking-widest text-white/50">
+      <p className="mt-8 text-center text-xs uppercase tracking-widest text-white/70">
         Disponible dans le programme
       </p>
     </Section>
