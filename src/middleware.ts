@@ -41,6 +41,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
+  if (user && (pathname.startsWith("/diagnostic") || pathname.startsWith("/dashboard"))) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("onboarding_completed")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (!profile || profile.onboarding_completed !== true) {
+      return NextResponse.redirect(new URL("/onboarding", request.url));
+    }
+  }
+
   return response;
 }
 

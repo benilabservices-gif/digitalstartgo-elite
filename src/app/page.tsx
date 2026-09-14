@@ -15,6 +15,9 @@ export default function HomePage() {
       >
         Construire mon système de vente
       </Link>
+      <Link href="/login" className="text-sm text-white/70 hover:text-white hover:underline">
+        Déjà un compte ? Se connecter
+      </Link>
     </main>
   );
 }

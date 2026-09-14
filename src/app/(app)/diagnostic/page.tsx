@@ -23,28 +23,41 @@ export default function DiagnosticPage() {
   const [answers, setAnswers] = useState<DiagnosticAnswers>(DEFAULT_ANSWERS);
   const [result, setResult] = useState<DiagnosticResult | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const computed = computeDiagnosticResult(answers);
-    setResult(computed);
+    setSaveError(null);
     setSaving(true);
+
+    const computed = computeDiagnosticResult(answers);
 
     const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (user) {
-      await supabase.from("diagnostics").insert({
-        profile_id: user.id,
-        answers,
-        score: computed.score,
-        priorities: computed.priorities,
-      });
+    if (!user) {
+      setSaving(false);
+      setSaveError("Une erreur est survenue. Votre score n'a pas pu être enregistré. Réessayez.");
+      return;
     }
 
+    const { error } = await supabase.from("diagnostics").insert({
+      profile_id: user.id,
+      answers,
+      score: computed.score,
+      priorities: computed.priorities,
+    });
+
     setSaving(false);
+
+    if (error) {
+      setSaveError("Une erreur est survenue. Votre score n'a pas pu être enregistré. Réessayez.");
+      return;
+    }
+
+    setResult(computed);
   }
 
   if (result) {
@@ -97,6 +110,7 @@ export default function DiagnosticPage() {
         <Button type="submit" disabled={saving}>
           {saving ? "Calcul en cours..." : "Obtenir mon Funnel Score"}
         </Button>
+        {saveError && <p className="text-sm text-error">{saveError}</p>}
       </form>
     </div>
   );

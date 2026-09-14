@@ -22,6 +22,7 @@ export default function OnboardingPage() {
   const [form, setForm] = useState<Partial<OnboardingProfileInput>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   function updateField<K extends keyof OnboardingProfileInput>(key: K, value: OnboardingProfileInput[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -35,6 +36,7 @@ export default function OnboardingPage() {
       return;
     }
     setErrors({});
+    setSubmitError(null);
     setSubmitting(true);
 
     const supabase = createClient();
@@ -47,7 +49,7 @@ export default function OnboardingPage() {
       return;
     }
 
-    await supabase.from("profiles").upsert({
+    const { error } = await supabase.from("profiles").upsert({
       id: user.id,
       business_name: form.businessName,
       activity: form.activity,
@@ -61,6 +63,14 @@ export default function OnboardingPage() {
     });
 
     setSubmitting(false);
+
+    if (error) {
+      setSubmitError(
+        "Une erreur est survenue lors de l'enregistrement de votre profil. Vos réponses n'ont pas été perdues, réessayez."
+      );
+      return;
+    }
+
     router.push("/diagnostic");
     router.refresh();
   }
@@ -145,6 +155,7 @@ export default function OnboardingPage() {
             )}
           </label>
 
+          {submitError && <p className="text-sm text-error">{submitError}</p>}
           <Button type="submit" disabled={submitting}>
             {submitting ? "Enregistrement..." : "Continuer vers mon diagnostic"}
           </Button>
