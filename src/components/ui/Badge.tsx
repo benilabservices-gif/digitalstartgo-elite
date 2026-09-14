@@ -7,11 +7,19 @@ const toneClasses: Record<Tone, string> = {
   error: "border-error/50 text-error",
 };
 
+const pointClasses: Record<Tone, string> = {
+  default: "bg-dark/40",
+  success: "bg-success",
+  warning: "bg-warning",
+  error: "bg-error",
+};
+
 export function Badge({ tone = "default", children }: { tone?: Tone; children: React.ReactNode }) {
   return (
     <span
-      className={`inline-flex items-center rounded-sm border px-2 py-0.5 text-xs font-medium ${toneClasses[tone]}`}
+      className={`t-meta inline-flex items-center gap-1.5 rounded-[2px] border px-2 py-[3px] text-xs ${toneClasses[tone]}`}
     >
+      <span aria-hidden="true" className={`h-[5px] w-[5px] ${pointClasses[tone]}`} />
       {children}
     </span>
   );

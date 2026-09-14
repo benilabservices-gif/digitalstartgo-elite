@@ -2,10 +2,118 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+  Virtuose Funnel — échelle typographique.
+  Corps en Newsreader (serif de lecture, interlignage généreux),
+  display en Archivo poussé sur son axe de largeur.
+*/
+:root {
+  --largeur-entonnoir: 1240px;
+}
+
 html {
   scroll-behavior: smooth;
+  /* La nav est fixe : les ancres ne doivent pas passer dessous. */
+  scroll-padding-top: 5.5rem;
 }
 
 body {
   @apply bg-paper text-dark;
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  text-rendering: optimizeLegibility;
+}
+
+/* Les titres portent la personnalité : Archivo étiré, serré, bas de casse. */
+.t-display {
+  font-family: var(--font-archivo), "Helvetica Neue", Arial, sans-serif;
+  font-stretch: 122%;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 0.94;
+  text-wrap: balance;
+}
+
+.t-display-mid {
+  font-family: var(--font-archivo), "Helvetica Neue", Arial, sans-serif;
+  font-stretch: 112%;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+/* Étiquettes et données : Archivo condensé, jamais en capitales espacées. */
+.t-meta {
+  font-family: var(--font-archivo), "Helvetica Neue", Arial, sans-serif;
+  font-stretch: 92%;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  font-variant-numeric: tabular-nums;
+}
+
+.t-chiffre {
+  font-family: var(--font-archivo), "Helvetica Neue", Arial, sans-serif;
+  font-stretch: 118%;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.04em;
+}
+
+/* Focus visible cohérent sur toute la marque, clair comme sombre. */
+:where(a, button, [tabindex]):focus-visible {
+  outline: 2px solid #f0b928;
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/*
+  Le logo officiel est un PNG à fond blanc opaque, tagline incluse — et cette
+  tagline est mot pour mot le titre H1. On le pose donc sur une plaque blanche
+  (le fond pour lequel il a été dessiné) et on recadre ses marges et sa tagline.
+  Recadrage : 12 % à gauche, 13 % à droite, 2 % en haut, 14 % en bas.
+*/
+.plaque-logo {
+  --plaque: 320px;
+  display: inline-block;
+  background: #ffffff;
+  padding: clamp(0.75rem, 1.6vw, 1.25rem);
+  border-radius: 2px;
+}
+
+.plaque-logo > span {
+  display: block;
+  overflow: hidden;
+  width: var(--plaque);
+  /* hauteur visible = largeur ÷ 0,75 × (1024/1536) × 0,84 */
+  height: calc(var(--plaque) * 0.7467);
+}
+
+.plaque-logo img {
+  display: block;
+  max-width: none;
+  width: calc(var(--plaque) / 0.75);
+  height: auto;
+  margin-left: calc(var(--plaque) / 0.75 * -0.12);
+  margin-top: calc(var(--plaque) / 0.75 * 0.6667 * -0.02);
+}
+
+/* L'escalier des quatre temps : uniquement là où les colonnes existent. */
+@media (min-width: 1024px) {
+  .escalier > li {
+    margin-top: calc(var(--pas, 0) * 2.5rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
 }
