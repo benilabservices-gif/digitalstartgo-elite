@@ -88,7 +88,7 @@ export function MissionSubmissionForm({
 
     if (submissionError) {
       setError(
-        "Votre livrable n'a pas pu être envoyé. Vérifiez votre connexion et réessayez — votre texte est toujours là."
+        "Votre livrable n'a pas pu être envoyé. Rafraîchissez la page puis réessayez — votre texte est toujours là."
       );
       return;
     }
