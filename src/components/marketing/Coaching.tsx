@@ -18,17 +18,18 @@ const POINTS = [
 export function Coaching() {
   return (
     <Section tone="light">
-      <h2 className="mb-4 text-center text-3xl font-extrabold text-dark sm:text-4xl">
+      <h2 className="mb-4 max-w-xl font-heading text-4xl font-semibold text-dark sm:text-6xl">
         Un humain valide chaque étape de votre progression.
       </h2>
-      <p className="mx-auto mb-10 max-w-xl text-center text-secondary">
+      <p className="mb-10 max-w-xl text-secondary">
         Virtuose Funnel n&apos;est pas une formation vidéo qu&apos;on regarde. C&apos;est un
         accompagnement qu&apos;on exécute, avec un coach qui vérifie chaque livrable.
       </p>
-      <div className="grid gap-6 sm:grid-cols-3">
-        {POINTS.map((point) => (
-          <div key={point.titre} className="text-center">
-            <h3 className="mb-2 text-lg font-bold text-dark">{point.titre}</h3>
+      <div className="grid gap-8 border-t border-dark/15 pt-8 sm:grid-cols-3">
+        {POINTS.map((point, index) => (
+          <div key={point.titre}>
+            <p className="mb-2 font-heading text-2xl text-ochre">{index + 1}</p>
+            <h3 className="mb-2 font-heading text-lg font-semibold text-dark">{point.titre}</h3>
             <p className="text-secondary">{point.description}</p>
           </div>
         ))}

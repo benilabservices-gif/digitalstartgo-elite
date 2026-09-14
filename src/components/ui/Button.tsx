@@ -6,9 +6,9 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const variantClasses: Record<NonNullable<ButtonProps["variant"]>, string> = {
-  primary: "bg-royal text-white hover:bg-electric",
-  secondary: "bg-white text-dark border border-dark/10 hover:bg-soft",
-  ghost: "bg-transparent text-royal hover:bg-royal/10",
+  primary: "bg-ochre text-ink hover:bg-amber",
+  secondary: "bg-white text-dark border border-dark/10 hover:bg-paper",
+  ghost: "bg-transparent text-ochre hover:bg-ochre/10",
 };
 
 const sizeClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
@@ -24,7 +24,7 @@ export function Button({
 }: ButtonProps) {
   return (
     <button
-      className={`rounded-lg font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
+      className={`rounded-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
       {...props}
     />
   );

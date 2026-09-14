@@ -37,7 +37,7 @@ const ETAPES = [
 export function LesHuitEtapes() {
   return (
     <Section tone="light">
-      <h2 className="mb-10 text-center text-3xl font-extrabold text-dark sm:text-4xl">
+      <h2 className="mb-10 font-heading text-4xl font-semibold text-dark sm:text-6xl">
         Le programme en 8 étapes
       </h2>
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -50,7 +50,7 @@ export function LesHuitEtapes() {
             {etape.numero === 1 && (
               <div className="flex flex-col gap-2">
                 <Badge tone="success">Commencez ici</Badge>
-                <Link href="/signup" className="text-sm font-semibold text-royal hover:underline">
+                <Link href="/signup" className="text-sm font-semibold text-ochre hover:underline">
                   Faire mon diagnostic →
                 </Link>
               </div>

@@ -24,10 +24,9 @@ const FRICTIONS = [
 export function Probleme() {
   return (
     <Section tone="light">
-      <h2 className="mb-10 text-center text-3xl font-extrabold text-dark sm:text-4xl">
-        La plupart des entrepreneurs n&apos;ont pas un problème de trafic.
-        <br />
-        Ils ont un problème de système.
+      <h2 className="mb-10 max-w-2xl font-heading text-4xl font-semibold text-dark sm:text-6xl">
+        La plupart des entrepreneurs n&apos;ont pas un problème de trafic. Ils ont un problème de
+        système.
       </h2>
       <div className="grid gap-6 sm:grid-cols-2">
         {FRICTIONS.map((friction) => (

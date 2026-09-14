@@ -63,8 +63,8 @@ export default function DiagnosticPage() {
   if (result) {
     return (
       <div className="mx-auto max-w-xl px-6 py-10 text-center">
-        <p className="text-sm font-semibold uppercase tracking-widest text-royal">Votre Funnel Score</p>
-        <p className="my-4 text-6xl font-extrabold text-navy">{result.score}/100</p>
+        <p className="text-sm font-semibold uppercase tracking-widest text-ochre">Votre Funnel Score</p>
+        <p className="my-4 text-6xl font-extrabold text-ink">{result.score}/100</p>
         <Card title="Vos 3 priorités">
           <ol className="list-decimal space-y-2 pl-5 text-left text-dark">
             {result.priorities.map((priority) => (
@@ -92,7 +92,7 @@ export default function DiagnosticPage() {
               <label htmlFor={id} className="text-sm font-medium text-dark">
                 {label}
               </label>
-              <span className="text-sm font-semibold text-royal">{answers[id]}/10</span>
+              <span className="text-sm font-semibold text-ochre">{answers[id]}/10</span>
             </div>
             <input
               id={id}

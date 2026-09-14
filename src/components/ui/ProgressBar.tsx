@@ -12,7 +12,7 @@ export function ProgressBar({ value, label }: { value: number; label?: string })
         className="h-2 w-full overflow-hidden rounded-full bg-dark/10"
       >
         <div
-          className="h-full rounded-full bg-royal transition-all"
+          className="h-full rounded-full bg-ochre transition-all"
           style={{ width: `${clamped}%` }}
         />
       </div>

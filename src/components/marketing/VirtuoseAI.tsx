@@ -10,24 +10,19 @@ const PROMPTS = [
 export function VirtuoseAI() {
   return (
     <Section tone="dark">
-      <h2 className="mb-4 text-center text-3xl font-extrabold sm:text-4xl">Virtuose AI</h2>
-      <p className="mx-auto mb-10 max-w-xl text-center text-white/70">
+      <h2 className="mb-4 font-heading text-4xl font-semibold sm:text-6xl">Virtuose AI</h2>
+      <p className="mb-10 max-w-xl text-white/70">
         Un coach funnel disponible en continu, qui connaît votre offre, votre audience et votre
         progression.
       </p>
-      <div className="mx-auto flex max-w-xl flex-col gap-3">
+      <div className="flex max-w-xl flex-col gap-3 border-l-2 border-ochre pl-6">
         {PROMPTS.map((prompt) => (
-          <div
-            key={prompt}
-            className="self-start rounded-2xl rounded-bl-none bg-white/10 px-4 py-3 text-sm text-white"
-          >
-            {prompt}
-          </div>
+          <p key={prompt} className="text-white/90">
+            « {prompt} »
+          </p>
         ))}
       </div>
-      <p className="mt-8 text-center text-xs uppercase tracking-widest text-white/70">
-        Disponible dans le programme
-      </p>
+      <p className="mt-8 font-heading italic text-white/60">Disponible dans le programme.</p>
     </Section>
   );
 }

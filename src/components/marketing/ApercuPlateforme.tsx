@@ -17,14 +17,14 @@ const ETAPES = [
 export function ApercuPlateforme() {
   return (
     <Section tone="dark">
-      <h2 className="mb-4 text-center text-3xl font-extrabold sm:text-4xl">
+      <h2 className="mb-4 max-w-xl font-heading text-4xl font-semibold sm:text-6xl">
         Voici à quoi ressemble votre tableau de bord dès votre premier jour.
       </h2>
-      <p className="mx-auto mb-10 max-w-xl text-center text-white/70">
-        Mon Parcours Virtuose : votre progression, votre mission en cours, et les étapes qui vous
+      <p className="mb-10 max-w-xl text-white/70">
+        Mon Parcours Virtuose : votre progression, votre première mission, et les étapes qui vous
         rapprochent de votre prochain client.
       </p>
-      <div className="mx-auto max-w-2xl rounded-xl bg-white p-6 text-dark shadow-lg">
+      <div className="mx-auto max-w-2xl border border-white/20 bg-white p-6 text-dark">
         <div className="mb-6">
           <ProgressBar value={0} label="Progression globale" />
         </div>

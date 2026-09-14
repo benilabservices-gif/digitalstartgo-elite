@@ -1,5 +1,4 @@
 import { Section } from "./Section";
-import { Card } from "@/components/ui/Card";
 import { ExempleBadge } from "./ExempleBadge";
 
 const TEMOIGNAGES = [
@@ -20,18 +19,18 @@ const TEMOIGNAGES = [
 export function Temoignages() {
   return (
     <Section tone="light">
-      <div className="mb-10 flex items-center justify-center gap-3">
-        <h2 className="text-center text-3xl font-extrabold text-dark sm:text-4xl">
+      <div className="mb-10 flex items-baseline gap-3">
+        <h2 className="font-heading text-4xl font-semibold text-dark sm:text-6xl">
           Ce qu&apos;en disent les participants
         </h2>
         <ExempleBadge />
       </div>
-      <div className="grid gap-6 sm:grid-cols-3">
+      <div className="grid gap-8 sm:grid-cols-3">
         {TEMOIGNAGES.map((temoignage) => (
-          <Card key={temoignage.nom}>
-            <p className="mb-4 text-dark">&laquo; {temoignage.citation} &raquo;</p>
-            <p className="text-sm font-semibold text-secondary">{temoignage.nom}</p>
-          </Card>
+          <div key={temoignage.nom} className="border-l-2 border-dark/20 pl-5">
+            <p className="mb-3 font-heading text-lg italic text-dark">{temoignage.citation}</p>
+            <p className="text-sm text-secondary">{temoignage.nom}</p>
+          </div>
         ))}
       </div>
     </Section>

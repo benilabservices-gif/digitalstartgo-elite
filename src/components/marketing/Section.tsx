@@ -8,7 +8,10 @@ export function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className={tone === "dark" ? "bg-navy text-white" : "bg-soft text-dark"}>
+    <section
+      id={id}
+      className={tone === "dark" ? "bg-ink text-white" : "border-t border-dark/10 bg-paper text-dark"}
+    >
       <div className="mx-auto max-w-5xl px-6 py-20">{children}</div>
     </section>
   );

@@ -1,3 +1,5 @@
+import { MarketingNav } from "@/components/marketing/MarketingNav";
+import { ProgressRail } from "@/components/marketing/ProgressRail";
 import { Hero } from "@/components/marketing/Hero";
 import { Probleme } from "@/components/marketing/Probleme";
 import { Transformation } from "@/components/marketing/Transformation";
@@ -14,7 +16,9 @@ import { CtaFinal } from "@/components/marketing/CtaFinal";
 
 export default function HomePage() {
   return (
-    <main>
+    <main id="top">
+      <MarketingNav />
+      <ProgressRail />
       <Hero />
       <Probleme />
       <Transformation />

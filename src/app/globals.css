@@ -7,5 +7,5 @@ html {
 }
 
 body {
-  @apply bg-soft text-dark;
+  @apply bg-paper text-dark;
 }

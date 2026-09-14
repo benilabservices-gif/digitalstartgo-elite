@@ -30,24 +30,24 @@ export function Faq() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <Section tone="light">
-      <h2 className="mb-10 text-center text-3xl font-extrabold text-dark sm:text-4xl">
+    <Section tone="light" id="faq">
+      <h2 className="mb-10 font-heading text-4xl font-semibold text-dark sm:text-6xl">
         Questions fréquentes
       </h2>
-      <div className="mx-auto flex max-w-2xl flex-col gap-3">
+      <div className="max-w-2xl divide-y divide-dark/15 border-t border-dark/15">
         {QUESTIONS.map((item, index) => {
           const isOpen = openIndex === index;
           return (
-            <div key={item.question} className="rounded-lg border border-dark/10 bg-white">
+            <div key={item.question}>
               <button
                 type="button"
                 onClick={() => setOpenIndex(isOpen ? null : index)}
-                className="flex w-full items-center justify-between px-5 py-4 text-left font-semibold text-dark"
+                className="flex w-full items-center justify-between py-4 text-left font-medium text-dark"
               >
                 {item.question}
-                <span className="ml-4 text-secondary">{isOpen ? "−" : "+"}</span>
+                <span className="ml-4 font-heading text-ochre">{isOpen ? "−" : "+"}</span>
               </button>
-              {isOpen && <p className="px-5 pb-4 text-secondary">{item.reponse}</p>}
+              {isOpen && <p className="pb-4 text-secondary">{item.reponse}</p>}
             </div>
           );
         })}

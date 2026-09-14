@@ -5,12 +5,12 @@ export function CtaFinal() {
   return (
     <Section tone="dark">
       <div className="flex flex-col items-center gap-6 text-center">
-        <h2 className="max-w-xl text-3xl font-extrabold sm:text-4xl">
+        <h2 className="max-w-xl font-heading text-4xl font-semibold sm:text-6xl">
           Construisez votre système de vente. Lancez-le. Optimisez-le.
         </h2>
         <Link
           href="/signup"
-          className="rounded-lg bg-royal px-6 py-3 font-semibold text-white transition hover:bg-electric"
+          className="rounded-sm bg-ochre px-6 py-3 font-semibold text-ink transition hover:bg-amber"
         >
           Construire mon système de vente
         </Link>

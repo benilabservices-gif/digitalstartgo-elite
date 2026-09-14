@@ -26,19 +26,16 @@ const ETAPES_MACRO = [
 export function CommentCaMarche() {
   return (
     <Section tone="light" id="comment-ca-marche">
-      <h2 className="mb-10 text-center text-3xl font-extrabold text-dark sm:text-4xl">
+      <h2 className="mb-10 font-heading text-4xl font-semibold text-dark sm:text-6xl">
         Comment ça marche
       </h2>
-      <div className="grid gap-8 sm:grid-cols-4">
+      <div className="grid gap-8 border-t border-dark/15 pt-8 sm:grid-cols-4">
         {ETAPES_MACRO.map((etape) => (
-          <div
-            key={etape.numero}
-            className="flex flex-col items-center text-center sm:items-start sm:text-left"
-          >
-            <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-royal text-lg font-bold text-white">
+          <div key={etape.numero} className="flex flex-col gap-2">
+            <span className="border-b border-ochre pb-1 font-heading text-2xl text-ochre">
               {etape.numero}
             </span>
-            <h3 className="mb-2 text-lg font-bold text-dark">{etape.titre}</h3>
+            <h3 className="font-heading text-lg font-semibold text-dark">{etape.titre}</h3>
             <p className="text-secondary">{etape.description}</p>
           </div>
         ))}

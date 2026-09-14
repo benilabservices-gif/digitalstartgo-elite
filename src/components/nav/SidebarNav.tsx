@@ -23,13 +23,13 @@ export function SidebarNav() {
 
   return (
     <nav className="hidden w-64 flex-col gap-1 border-r border-dark/5 bg-white p-4 sm:flex">
-      <p className="mb-4 px-2 text-lg font-extrabold text-navy">Virtuose Funnel</p>
+      <p className="mb-4 px-2 text-lg font-extrabold text-ink">Virtuose Funnel</p>
       {ITEMS.map((item) => (
         <Link
           key={item.label}
           href={item.href}
           className={`rounded-lg px-3 py-2 text-sm font-medium ${
-            pathname === item.href ? "bg-royal/10 text-royal" : "text-secondary hover:bg-soft"
+            pathname === item.href ? "bg-ochre/10 text-ochre" : "text-secondary hover:bg-paper"
           }`}
         >
           {item.label}
@@ -38,7 +38,7 @@ export function SidebarNav() {
       <button
         type="button"
         onClick={handleSignOut}
-        className="mt-auto rounded-lg border-t border-dark/5 px-3 py-2 pt-4 text-left text-sm font-medium text-secondary hover:bg-soft"
+        className="mt-auto rounded-lg border-t border-dark/5 px-3 py-2 pt-4 text-left text-sm font-medium text-secondary hover:bg-paper"
       >
         Se déconnecter
       </button>

@@ -11,7 +11,7 @@ describe("Section", () => {
     );
     const section = screen.getByText("Contenu").closest("section");
     expect(section).toHaveAttribute("id", "ma-section");
-    expect(section).toHaveClass("bg-navy");
+    expect(section).toHaveClass("bg-ink");
   });
 
   it("applique le fond clair par défaut sans id", () => {
@@ -22,6 +22,6 @@ describe("Section", () => {
     );
     const section = screen.getByText("Autre contenu").closest("section");
     expect(section).not.toHaveAttribute("id");
-    expect(section).toHaveClass("bg-soft");
+    expect(section).toHaveClass("bg-paper");
   });
 });
