@@ -44,7 +44,7 @@ Pas de nouvelle dépendance externe (pas de librairie d'accordéon, de carrousel
 ### 1. Hero (`tone="dark"`)
 - Kicker "VIRTUOSE FUNNEL", titre "Transformez votre audience en système de vente.", sous-texte "Un programme d'accompagnement guidé pour construire, lancer et optimiser votre système d'acquisition et de conversion." (texte exact spec §30).
 - CTA primaire → `/signup` ("Construire mon système de vente"), secondaire → ancre `#comment-ca-marche` ("Découvrir le programme").
-- Élément visuel : frise de 8 pastilles numérotées (dégradé or→électrique), à droite du texte en desktop (`sm:flex-row`), sous le texte en mobile.
+- Élément visuel : frise de 8 pastilles numérotées (dégradé `royal`→`electric`, cohérent avec la palette Virtuose Funnel — pas de couleur or/dorée, qui appartenait à l'ancienne identité DigitalStartGo Elite), à droite du texte en desktop (`sm:flex-row`), sous le texte en mobile.
 - Conserve le lien existant "Déjà un compte ? Se connecter" → `/login` (ajouté au Plan Fondation).
 
 ### 2. Problème (`tone="light"`)
