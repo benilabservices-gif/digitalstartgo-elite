@@ -79,11 +79,11 @@ export default async function CoachSubmissionPage({ params }: { params: { id: st
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10">
-      <Link href="/coach" className="text-sm font-medium text-royal hover:underline">
+      <Link href="/coach" className="text-sm font-medium text-ochre hover:underline">
         ← Retour à la file de revue
       </Link>
 
-      <p className="mt-6 text-sm font-semibold uppercase tracking-widest text-royal">
+      <p className="mt-6 text-sm font-semibold uppercase tracking-widest text-ochre">
         Mission {mission?.number ?? "?"}
       </p>
       <h1 className="text-3xl font-extrabold text-dark">{mission?.title ?? "Mission inconnue"}</h1>

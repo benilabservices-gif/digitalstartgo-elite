@@ -91,11 +91,11 @@ export default async function MissionPage({ params }: { params: { id: string } }
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10">
-      <Link href="/dashboard" className="text-sm font-medium text-royal hover:underline">
+      <Link href="/dashboard" className="text-sm font-medium text-ochre hover:underline">
         ← Retour à mon parcours
       </Link>
 
-      <p className="mt-6 text-sm font-semibold uppercase tracking-widest text-royal">
+      <p className="mt-6 text-sm font-semibold uppercase tracking-widest text-ochre">
         Étape {missionRow.stages?.number ?? missionRow.number} ·{" "}
         {missionRow.stages?.title ?? "Mon Parcours"}
       </p>
