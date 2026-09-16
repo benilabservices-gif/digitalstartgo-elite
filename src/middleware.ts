@@ -1,7 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const APP_ROUTES = ["/dashboard", "/onboarding", "/diagnostic", "/missions", "/coach"];
+const APP_ROUTES = ["/dashboard", "/onboarding", "/diagnostic", "/missions", "/coach", "/ressources"];
 const AUTH_ROUTES = ["/login", "/signup"];
 
 export async function middleware(request: NextRequest) {
@@ -47,7 +47,8 @@ export async function middleware(request: NextRequest) {
     user &&
     (pathname.startsWith("/diagnostic") ||
       pathname.startsWith("/dashboard") ||
-      pathname.startsWith("/missions"))
+      pathname.startsWith("/missions") ||
+      pathname.startsWith("/ressources"))
   ) {
     const { data: profile } = await supabase
       .from("profiles")
@@ -70,6 +71,7 @@ export const config = {
     "/diagnostic/:path*",
     "/missions/:path*",
     "/coach/:path*",
+    "/ressources/:path*",
     "/login",
     "/signup",
   ],
