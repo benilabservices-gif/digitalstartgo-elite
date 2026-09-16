@@ -117,3 +117,11 @@ body {
     transition-duration: 1ms !important;
   }
 }
+
+/* Bouton "Télécharger en PDF" (guides) : la sidebar/bottom nav ne doit
+   jamais apparaître dans l'impression, seul le contenu du guide compte. */
+@media print {
+  nav {
+    display: none !important;
+  }
+}
