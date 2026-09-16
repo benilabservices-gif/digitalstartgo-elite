@@ -1,7 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const APP_ROUTES = ["/dashboard", "/onboarding", "/diagnostic"];
+const APP_ROUTES = ["/dashboard", "/onboarding", "/diagnostic", "/missions", "/coach"];
 const AUTH_ROUTES = ["/login", "/signup"];
 
 export async function middleware(request: NextRequest) {
@@ -41,7 +41,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  if (user && (pathname.startsWith("/diagnostic") || pathname.startsWith("/dashboard"))) {
+  // /coach est volontairement hors de ce contrôle : un compte coach n'a pas
+  // forcément d'onboarding participant complété.
+  if (
+    user &&
+    (pathname.startsWith("/diagnostic") ||
+      pathname.startsWith("/dashboard") ||
+      pathname.startsWith("/missions"))
+  ) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("onboarding_completed")
@@ -57,5 +64,13 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/onboarding/:path*", "/diagnostic/:path*", "/login", "/signup"],
+  matcher: [
+    "/dashboard/:path*",
+    "/onboarding/:path*",
+    "/diagnostic/:path*",
+    "/missions/:path*",
+    "/coach/:path*",
+    "/login",
+    "/signup",
+  ],
 };

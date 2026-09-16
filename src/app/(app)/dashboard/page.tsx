@@ -1,24 +1,14 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { ProgressBar } from "@/components/ui/ProgressBar";
-
-const STATUS_LABELS: Record<string, string> = {
-  a_faire: "À faire",
-  en_cours: "En cours",
-  soumis: "Soumis",
-  a_corriger: "À corriger",
-  valide: "Validé",
-};
-
-const STATUS_TONE: Record<string, "default" | "success" | "warning"> = {
-  a_faire: "default",
-  en_cours: "warning",
-  soumis: "warning",
-  a_corriger: "warning",
-  valide: "success",
-};
+import {
+  MISSION_STATUS_LABELS,
+  MISSION_STATUS_TONE,
+  toMissionStatus,
+} from "@/lib/missions/status";
 
 export default async function DashboardPage() {
   const supabase = createClient();
@@ -32,7 +22,7 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("business_name, onboarding_completed")
+    .select("business_name, onboarding_completed, role")
     .eq("id", user.id)
     .single();
 
@@ -62,6 +52,9 @@ export default async function DashboardPage() {
     stage.missions.some((mission) => progressByMission.get(mission.id) !== "valide")
   );
   const currentMission = currentStage?.missions[0];
+  const currentStatus = currentMission
+    ? toMissionStatus(progressByMission.get(currentMission.id))
+    : null;
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10">
@@ -70,17 +63,38 @@ export default async function DashboardPage() {
       </h1>
       <p className="mb-8 text-secondary">Voici ce qui compte aujourd&apos;hui.</p>
 
+      {profile.role === "coach" && (
+        <div className="mb-6">
+          <Card title="Espace coach">
+            <p className="mb-3 text-secondary">
+              Vous avez des livrables de participants à revoir.
+            </p>
+            <Link href="/coach" className="text-sm font-semibold text-royal hover:underline">
+              Ouvrir la file de revue →
+            </Link>
+          </Card>
+        </div>
+      )}
+
       <Card title="Progression globale">
         <ProgressBar value={overallProgress} label="Mon Parcours Virtuose" />
       </Card>
 
-      {currentMission && (
+      {currentMission && currentStatus && (
         <div className="mt-6">
           <Card title={`Mission ${currentMission.number}`}>
             <p className="mb-4 text-dark">{currentMission.title}</p>
-            <Badge tone={STATUS_TONE[progressByMission.get(currentMission.id) ?? "a_faire"]}>
-              {STATUS_LABELS[progressByMission.get(currentMission.id) ?? "a_faire"]}
-            </Badge>
+            <div className="flex flex-wrap items-center gap-4">
+              <Badge tone={MISSION_STATUS_TONE[currentStatus]}>
+                {MISSION_STATUS_LABELS[currentStatus]}
+              </Badge>
+              <Link
+                href={`/missions/${currentMission.id}`}
+                className="text-sm font-semibold text-royal hover:underline"
+              >
+                Ouvrir la mission →
+              </Link>
+            </div>
           </Card>
         </div>
       )}
@@ -90,13 +104,24 @@ export default async function DashboardPage() {
           <ol className="flex flex-col gap-3">
             {(stages ?? []).map((stage) => {
               const stageMission = stage.missions[0];
-              const status = stageMission ? progressByMission.get(stageMission.id) ?? "a_faire" : "a_faire";
+              const status = toMissionStatus(
+                stageMission ? progressByMission.get(stageMission.id) : undefined
+              );
+              const label = (
+                <span className="text-dark">
+                  {String(stage.number).padStart(2, "0")} {stage.title}
+                </span>
+              );
               return (
-                <li key={stage.id} className="flex items-center justify-between">
-                  <span className="text-dark">
-                    {String(stage.number).padStart(2, "0")} {stage.title}
-                  </span>
-                  <Badge tone={STATUS_TONE[status]}>{STATUS_LABELS[status]}</Badge>
+                <li key={stage.id} className="flex items-center justify-between gap-3">
+                  {stageMission ? (
+                    <Link href={`/missions/${stageMission.id}`} className="hover:underline">
+                      {label}
+                    </Link>
+                  ) : (
+                    label
+                  )}
+                  <Badge tone={MISSION_STATUS_TONE[status]}>{MISSION_STATUS_LABELS[status]}</Badge>
                 </li>
               );
             })}
