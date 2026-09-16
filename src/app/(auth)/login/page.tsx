@@ -29,7 +29,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-soft px-4">
+    <main className="flex min-h-screen items-center justify-center bg-paper px-4">
       <Card title="Se connecter à Virtuose Funnel">
         <form onSubmit={handleSubmit} className="flex w-80 flex-col gap-4">
           <input

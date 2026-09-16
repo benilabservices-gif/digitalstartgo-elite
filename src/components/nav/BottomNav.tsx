@@ -17,7 +17,7 @@ export function BottomNav() {
           key={item.label}
           href={item.href}
           className={`flex-1 py-3 text-center text-xs font-medium ${
-            pathname === item.href ? "text-royal" : "text-secondary"
+            pathname === item.href ? "text-ochre" : "text-secondary"
           }`}
         >
           {item.label}

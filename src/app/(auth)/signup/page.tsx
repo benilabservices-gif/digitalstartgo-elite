@@ -38,7 +38,7 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-soft px-4">
+    <main className="flex min-h-screen items-center justify-center bg-paper px-4">
       <Card title="Créer mon compte Virtuose Funnel">
         <form onSubmit={handleSubmit} className="flex w-80 flex-col gap-4">
           <input
@@ -59,14 +59,14 @@ export default function SignupPage() {
             className="rounded-lg border border-dark/10 px-3 py-2"
           />
           {error && <p className="text-sm text-error">{error}</p>}
-          {info && <p className="text-sm text-royal">{info}</p>}
+          {info && <p className="text-sm text-ochre">{info}</p>}
           <Button type="submit" disabled={loading}>
             {loading ? "Création en cours..." : "Créer mon compte"}
           </Button>
         </form>
         <p className="mt-4 text-center text-sm text-secondary">
           Déjà un compte ?{" "}
-          <Link href="/login" className="font-semibold text-royal hover:underline">
+          <Link href="/login" className="font-semibold text-ochre hover:underline">
             Se connecter
           </Link>
         </p>

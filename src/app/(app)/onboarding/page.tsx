@@ -77,7 +77,7 @@ export default function OnboardingPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-10">
-      <p className="text-sm font-semibold uppercase tracking-widest text-royal">
+      <p className="text-sm font-semibold uppercase tracking-widest text-ochre">
         Bienvenue dans Virtuose Funnel
       </p>
       <h1 className="mb-8 text-3xl font-extrabold text-dark">Parlez-nous de votre activité</h1>
