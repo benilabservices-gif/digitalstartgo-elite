@@ -12,6 +12,7 @@ interface NavLinkItem {
 const BASE_ITEMS: NavLinkItem[] = [
   { href: "/dashboard", label: "Accueil" },
   { href: "/diagnostic", label: "Diagnostic" },
+  { href: "/ressources", label: "Ressources" },
 ];
 
 const COACH_ITEM: NavLinkItem = { href: "/coach", label: "Coach" };

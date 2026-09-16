@@ -16,4 +16,9 @@ describe("BottomNav", () => {
     render(<BottomNav role="coach" />);
     expect(screen.getByRole("link", { name: "Coach" })).toHaveAttribute("href", "/coach");
   });
+
+  it("affiche Ressources", () => {
+    render(<BottomNav role="participant" />);
+    expect(screen.getByRole("link", { name: "Ressources" })).toHaveAttribute("href", "/ressources");
+  });
 });
