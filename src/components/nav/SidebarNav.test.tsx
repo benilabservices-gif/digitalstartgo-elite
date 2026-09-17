@@ -28,4 +28,14 @@ describe("SidebarNav", () => {
     render(<SidebarNav role="participant" />);
     expect(screen.getByRole("link", { name: "Ressources" })).toHaveAttribute("href", "/ressources");
   });
+
+  it("n'affiche pas le lien Admin pour un participant", () => {
+    render(<SidebarNav role="participant" />);
+    expect(screen.queryByRole("link", { name: "Admin" })).not.toBeInTheDocument();
+  });
+
+  it("affiche le lien Admin pour un admin", () => {
+    render(<SidebarNav role="admin" />);
+    expect(screen.getByRole("link", { name: "Admin" })).toHaveAttribute("href", "/admin/cohorts");
+  });
 });

@@ -9,6 +9,41 @@ import {
   MISSION_STATUS_TONE,
   toMissionStatus,
 } from "@/lib/missions/status";
+import { deriveCohortStatus } from "@/lib/cohorts/status";
+
+const COHORT_STATUS_LABELS = {
+  a_venir: "À venir",
+  en_cours: "En cours",
+  terminee: "Terminée",
+} as const;
+
+async function CohortCard({ cohortId }: { cohortId: string }) {
+  const supabase = createClient();
+  const { data: cohort } = await supabase
+    .from("cohorts")
+    .select("name, starts_at, ends_at")
+    .eq("id", cohortId)
+    .maybeSingle();
+
+  if (!cohort) {
+    return null;
+  }
+
+  const status = deriveCohortStatus(cohort.starts_at, cohort.ends_at);
+
+  return (
+    <div className="mb-6">
+      <Card title={cohort.name}>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-sm text-secondary">
+            Du {cohort.starts_at} au {cohort.ends_at}
+          </p>
+          <Badge tone="default">{COHORT_STATUS_LABELS[status]}</Badge>
+        </div>
+      </Card>
+    </div>
+  );
+}
 
 export default async function DashboardPage() {
   const supabase = createClient();
@@ -22,7 +57,7 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("business_name, onboarding_completed, role")
+    .select("business_name, onboarding_completed, role, cohort_id")
     .eq("id", user.id)
     .single();
 
@@ -75,6 +110,8 @@ export default async function DashboardPage() {
           </Card>
         </div>
       )}
+
+      {profile.cohort_id && <CohortCard cohortId={profile.cohort_id} />}
 
       <Card title="Progression globale">
         <ProgressBar value={overallProgress} label="Mon Parcours Virtuose" />
