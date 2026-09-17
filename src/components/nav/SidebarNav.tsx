@@ -13,11 +13,12 @@ interface NavLinkItem {
 const BASE_ITEMS: NavLinkItem[] = [
   { href: "/dashboard", label: "Mon Parcours" },
   { href: "/diagnostic", label: "Diagnostic" },
+  { href: "/ressources", label: "Ressources" },
 ];
 
 const COACH_ITEM: NavLinkItem = { href: "/coach", label: "Coach" };
 
-const COMING_SOON_LABELS = ["Virtuose AI", "Ressources", "Communauté"];
+const COMING_SOON_LABELS = ["Virtuose AI", "Communauté"];
 
 export function SidebarNav({ role }: { role: ProfileRole }) {
   const pathname = usePathname();

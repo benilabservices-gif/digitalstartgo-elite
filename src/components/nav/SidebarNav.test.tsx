@@ -23,4 +23,9 @@ describe("SidebarNav", () => {
     expect(screen.getByText("Virtuose AI")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Virtuose AI/ })).not.toBeInTheDocument();
   });
+
+  it("affiche Ressources comme lien actif, plus dans les sections à venir", () => {
+    render(<SidebarNav role="participant" />);
+    expect(screen.getByRole("link", { name: "Ressources" })).toHaveAttribute("href", "/ressources");
+  });
 });
