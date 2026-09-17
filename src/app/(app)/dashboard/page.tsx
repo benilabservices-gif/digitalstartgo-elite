@@ -69,7 +69,7 @@ export default async function DashboardPage() {
             <p className="mb-3 text-secondary">
               Vous avez des livrables de participants à revoir.
             </p>
-            <Link href="/coach" className="text-sm font-semibold text-royal hover:underline">
+            <Link href="/coach" className="text-sm font-semibold text-ochre hover:underline">
               Ouvrir la file de revue →
             </Link>
           </Card>
@@ -90,7 +90,7 @@ export default async function DashboardPage() {
               </Badge>
               <Link
                 href={`/missions/${currentMission.id}`}
-                className="text-sm font-semibold text-royal hover:underline"
+                className="text-sm font-semibold text-ochre hover:underline"
               >
                 Ouvrir la mission →
               </Link>

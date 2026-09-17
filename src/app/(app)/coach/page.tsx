@@ -33,7 +33,7 @@ export default async function CoachQueuePage() {
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10">
-      <p className="text-sm font-semibold uppercase tracking-widest text-royal">Espace coach</p>
+      <p className="text-sm font-semibold uppercase tracking-widest text-ochre">Espace coach</p>
       <h1 className="text-3xl font-extrabold text-dark">Livrables à revoir</h1>
       <p className="mb-8 text-secondary">
         {submissions.length === 0
@@ -67,7 +67,7 @@ export default async function CoachQueuePage() {
                     <Badge tone="warning">En attente</Badge>
                     <Link
                       href={`/coach/${submission.id}`}
-                      className="text-sm font-semibold text-royal hover:underline"
+                      className="text-sm font-semibold text-ochre hover:underline"
                     >
                       Revoir →
                     </Link>
