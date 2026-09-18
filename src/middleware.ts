@@ -1,7 +1,16 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const APP_ROUTES = ["/dashboard", "/onboarding", "/diagnostic", "/missions", "/coach", "/ressources", "/admin"];
+const APP_ROUTES = [
+  "/dashboard",
+  "/onboarding",
+  "/diagnostic",
+  "/missions",
+  "/coach",
+  "/ressources",
+  "/admin",
+  "/abonnement",
+];
 const AUTH_ROUTES = ["/login", "/signup"];
 
 export async function middleware(request: NextRequest) {
@@ -52,12 +61,30 @@ export async function middleware(request: NextRequest) {
   ) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("onboarding_completed")
+      .select("onboarding_completed, role")
       .eq("id", user.id)
       .maybeSingle();
 
     if (!profile || profile.onboarding_completed !== true) {
       return NextResponse.redirect(new URL("/onboarding", request.url));
+    }
+
+    // /abonnement reste volontairement hors de ce contrôle (pas ajouté à la
+    // liste ci-dessus) : c'est la page où corriger l'absence d'abonnement,
+    // elle ne doit pas se rediriger elle-même. Les coachs et admins ne sont
+    // jamais des clients payants, seuls les participants sont concernés.
+    if (profile.role === "participant") {
+      const { data: activeSubscription } = await supabase
+        .from("subscriptions")
+        .select("id")
+        .eq("profile_id", user.id)
+        .gt("expires_at", new Date().toISOString())
+        .limit(1)
+        .maybeSingle();
+
+      if (!activeSubscription) {
+        return NextResponse.redirect(new URL("/abonnement", request.url));
+      }
     }
   }
 
@@ -73,6 +100,7 @@ export const config = {
     "/coach/:path*",
     "/ressources/:path*",
     "/admin/:path*",
+    "/abonnement/:path*",
     "/login",
     "/signup",
   ],

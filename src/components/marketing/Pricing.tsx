@@ -1,26 +1,28 @@
 import Link from "next/link";
 import { Section } from "./Section";
+import { PLANS, formatXof } from "@/lib/subscriptions/plans";
 
-// Tarifs réels du produit. Montants au format français : espace fine
-// insécable pour les milliers, insécable avant la devise.
+// Les prix viennent de src/lib/subscriptions/plans.ts (source unique) : ne
+// jamais redéfinir un montant ici, ça désynchroniserait la promesse affichée
+// et ce qui est réellement facturé.
 const PALIERS = [
   {
-    nom: "Starter",
-    prix: "99 900 FCFA",
+    nom: PLANS.starter.name,
+    prix: formatXof(PLANS.starter.amountXof),
     periode: "par mois",
     misEnAvant: false,
     avantages: ["Accès au parcours en 8 étapes", "Ressources et templates", "Communauté"],
   },
   {
-    nom: "Pro",
-    prix: "149 900 FCFA",
+    nom: PLANS.pro.name,
+    prix: formatXof(PLANS.pro.amountXof),
     periode: "par mois",
     misEnAvant: true,
     avantages: ["Tout Starter", "Coaching avec feedback sur chaque mission", "Accès à Virtuose AI"],
   },
   {
-    nom: "Elite",
-    prix: "249 900 FCFA",
+    nom: PLANS.elite.name,
+    prix: formatXof(PLANS.elite.amountXof),
     periode: "par mois",
     misEnAvant: false,
     avantages: ["Tout Pro", "Sessions de coaching individuelles", "Revue prioritaire des livrables"],
