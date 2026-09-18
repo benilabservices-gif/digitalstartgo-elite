@@ -20,7 +20,10 @@ export function SubscribeButton({ plan }: { plan: PlanKey }) {
 
     if (!response.ok) {
       setLoading(false);
-      setError("Impossible de démarrer le paiement. Réessayez dans un instant.");
+      const body = (await response.json().catch(() => null)) as { error?: string; detail?: string } | null;
+      setError(
+        [body?.error ?? "Impossible de démarrer le paiement.", body?.detail].filter(Boolean).join(" — ")
+      );
       return;
     }
 

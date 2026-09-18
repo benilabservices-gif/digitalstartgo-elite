@@ -41,7 +41,14 @@ export async function POST(request: Request) {
   });
 
   if (!cartfloxResponse.ok) {
-    return NextResponse.json({ error: "Impossible de créer la session de paiement." }, { status: 502 });
+    const detail = await cartfloxResponse.text().catch(() => "");
+    return NextResponse.json(
+      {
+        error: "Impossible de créer la session de paiement.",
+        detail: `Cartflox a répondu ${cartfloxResponse.status} : ${detail.slice(0, 500)}`,
+      },
+      { status: 502 }
+    );
   }
 
   const session = (await cartfloxResponse.json()) as { url: string };
