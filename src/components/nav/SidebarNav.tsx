@@ -17,7 +17,10 @@ const BASE_ITEMS: NavLinkItem[] = [
 ];
 
 const COACH_ITEM: NavLinkItem = { href: "/coach", label: "Coach" };
-const ADMIN_ITEM: NavLinkItem = { href: "/admin/cohorts", label: "Admin" };
+const ADMIN_ITEMS: NavLinkItem[] = [
+  { href: "/admin/cohorts", label: "Admin" },
+  { href: "/admin/abonnements", label: "Abonnements" },
+];
 
 const COMING_SOON_LABELS = ["Virtuose AI", "Communauté"];
 
@@ -27,7 +30,7 @@ export function SidebarNav({ role }: { role: ProfileRole }) {
   const items = [
     ...BASE_ITEMS,
     ...(role === "coach" ? [COACH_ITEM] : []),
-    ...(role === "admin" ? [ADMIN_ITEM] : []),
+    ...(role === "admin" ? ADMIN_ITEMS : []),
   ];
 
   async function handleSignOut() {
