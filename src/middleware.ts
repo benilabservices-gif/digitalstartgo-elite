@@ -1,7 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const APP_ROUTES = ["/dashboard", "/onboarding", "/diagnostic", "/missions", "/coach", "/ressources"];
+const APP_ROUTES = ["/dashboard", "/onboarding", "/diagnostic", "/missions", "/coach", "/ressources", "/admin"];
 const AUTH_ROUTES = ["/login", "/signup"];
 
 export async function middleware(request: NextRequest) {
@@ -72,6 +72,7 @@ export const config = {
     "/missions/:path*",
     "/coach/:path*",
     "/ressources/:path*",
+    "/admin/:path*",
     "/login",
     "/signup",
   ],
