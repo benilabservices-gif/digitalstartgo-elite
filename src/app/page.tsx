@@ -1,5 +1,6 @@
 import { MarketingNav } from "@/components/marketing/MarketingNav";
 import { RetourEnHaut } from "@/components/marketing/RetourEnHaut";
+import { Footer } from "@/components/marketing/Footer";
 import { Hero } from "@/components/marketing/Hero";
 import { Probleme } from "@/components/marketing/Probleme";
 import { Transformation } from "@/components/marketing/Transformation";
@@ -37,6 +38,7 @@ export default function HomePage() {
       <Pricing />
       <Faq />
       <CtaFinal />
+      <Footer />
       <RetourEnHaut />
     </main>
   );

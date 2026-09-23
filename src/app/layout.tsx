@@ -19,9 +19,54 @@ const newsreader = Newsreader({
 });
 
 export const metadata: Metadata = {
-  title: "Virtuose Funnel",
+  title: {
+    default: "Virtuose Funnel — Transformez votre audience en système de vente",
+    template: "%s | Virtuose Funnel",
+  },
   description:
-    "L'accompagnement guidé en 8 étapes qui transforme votre audience en système de vente.",
+    "Virtuose Funnel est un programme d'accompagnement guidé pour construire, lancer et optimiser votre système d'acquisition et de conversion.",
+  keywords: [
+    "funnel",
+    "acquisition",
+    "conversion",
+    "coaching",
+    "entrepreneuriat",
+    "lead magnet",
+    "système de vente",
+  ],
+  authors: [{ name: "Virtuose Funnel" }],
+  creator: "Virtuose Funnel",
+  publisher: "Virtuose Funnel",
+  robots: "index, follow",
+  openGraph: {
+    type: "website",
+    locale: "fr_FR",
+    url: "https://virtuosefunnel.com",
+    title: "Virtuose Funnel — Transformez votre audience en système de vente",
+    description:
+      "Virtuose Funnel est un programme d'accompagnement guidé pour construire, lancer et optimiser votre système d'acquisition et de conversion.",
+    siteName: "Virtuose Funnel",
+    images: [
+      {
+        url: "/logo-virtuose-funnel.png",
+        width: 1200,
+        height: 630,
+        alt: "Virtuose Funnel",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Virtuose Funnel — Transformez votre audience en système de vente",
+    description:
+      "Virtuose Funnel est un programme d'accompagnement guidé pour construire, lancer et optimiser votre système d'acquisition et de conversion.",
+    images: ["/logo-virtuose-funnel.png"],
+    creator: "@virtuosefunnel",
+  },
+  metadataBase: new URL("https://virtuosefunnel.com"),
+  alternates: {
+    canonical: "/",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

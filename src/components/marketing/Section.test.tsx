@@ -24,4 +24,14 @@ describe("Section", () => {
     expect(section).not.toHaveAttribute("id");
     expect(section).toHaveClass("bg-paper");
   });
+
+  it("applique les classes d'animation reveal au montage", () => {
+    render(
+      <Section tone="light" id="test-section">
+        <p>Test</p>
+      </Section>
+    );
+    const section = screen.getByText("Test").closest("section");
+    expect(section).toHaveClass("transition-opacity", "duration-700", "ease-out");
+  });
 });

@@ -7,6 +7,7 @@ import { SigneVirtuose } from "./LogoVirtuose";
 const LIENS = [
   { href: "#comment-ca-marche", id: "comment-ca-marche", label: "Le programme" },
   { href: "#les-etapes", id: "les-etapes", label: "Les 8 étapes" },
+  { href: "#resultats", id: "resultats", label: "Résultats" },
   { href: "#tarifs", id: "tarifs", label: "Tarifs" },
   { href: "#faq", id: "faq", label: "FAQ" },
 ];

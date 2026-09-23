@@ -100,8 +100,8 @@ export function Hero() {
           className="mt-9 max-w-[44ch] animate-monter-en-place pl-[3vw] text-[1.1875rem] leading-relaxed text-steel opacity-0 sm:pl-16 sm:text-[1.3125rem]"
           style={{ animationDelay: "400ms" }}
         >
-          Huit étapes, des missions concrètes, et un coach qui relit chaque livrable avant que vous
-          passiez à la suivante.
+          Un programme d&apos;accompagnement guidé pour construire, lancer et optimiser votre système
+          d&apos;acquisition et de conversion.
         </p>
 
         <div

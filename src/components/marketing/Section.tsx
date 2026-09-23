@@ -1,3 +1,7 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+
 export const LARGEUR_ENTONNOIR = 1240;
 
 type Tone = "dark" | "light" | "navy";
@@ -7,6 +11,36 @@ const fondClasses: Record<Tone, string> = {
   navy: "bg-navy text-paper",
   light: "bg-paper text-dark",
 };
+
+/**
+ * Déclenche une animation CSS (fadeIn + léger slide-up) quand la section entre
+ * dans le viewport. L'animation ne se joue qu'une fois — elle est gérée par
+ * un état qui ne bascule jamais en retour arrière.
+ */
+function useReveal() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [revealed, setRevealed] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setRevealed(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.12, rootMargin: "0px 0px -40px 0px" }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return { ref, revealed };
+}
 
 /**
  * Les deux parois de l'entonnoir. Chaque section en dessine son segment :
@@ -83,8 +117,16 @@ export function Section({
   intensite?: number;
   children: React.ReactNode;
 }) {
+  const { ref, revealed } = useReveal();
+
   return (
-    <section id={id} className={`relative ${fondClasses[tone]}`}>
+    <section
+      id={id}
+      ref={ref}
+      className={`relative ${fondClasses[tone]} ${
+        revealed ? "opacity-100" : "opacity-0"
+      } transition-opacity duration-700 ease-out`}
+    >
       <ParoiEntonnoir haut={haut} bas={bas} tone={tone} intensite={intensite} />
       <div
         className="relative mx-auto px-6 py-24 sm:py-32"
