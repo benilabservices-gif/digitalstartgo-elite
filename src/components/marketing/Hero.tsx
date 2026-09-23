@@ -1,9 +1,7 @@
 import Link from "next/link";
 import { LARGEUR_ENTONNOIR } from "./Section";
-import { PlaqueLogo } from "./LogoVirtuose";
+import { SigneVirtuose } from "./LogoVirtuose";
 
-// Les signaux dispersés qui entrent dans la bouche de l'entonnoir.
-// Coordonnées figées : pas d'aléatoire, l'hydratation doit être déterministe.
 const SIGNAUX = [
   [4, 11, 0.5],
   [11, 6, 0.28],
@@ -22,10 +20,15 @@ const SIGNAUX = [
   [95, 6, 0.35],
 ] as const;
 
+const AVATAR_INITIALES = ["AK", "MN", "FD", "OT"];
+
 export function Hero() {
   return (
     <section className="relative flex min-h-[100svh] flex-col justify-center overflow-hidden bg-ink px-6 pb-24 pt-28 text-paper sm:pt-36">
       <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+        {/* Gradient radial subtil en haut pour donner de la profondeur */}
+        <div className="absolute inset-0 rayon-dore" />
+
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="h-full w-full">
           {SIGNAUX.map(([x, y, o]) => (
             <line
@@ -44,9 +47,6 @@ export function Hero() {
           ))}
         </svg>
 
-        {/* La bouche de l'entonnoir : elle entre par les bords de l'écran et se
-            referme exactement sur la largeur où démarre la première section.
-            Unique séquence animée de toute la page. */}
         <div className="absolute inset-0 flex justify-center">
           <svg
             viewBox={`0 0 ${LARGEUR_ENTONNOIR} 100`}
@@ -79,17 +79,17 @@ export function Hero() {
         </div>
       </div>
 
-      {/* Le bloc de contenu est lui-même un coin : chaque élément est plus court
-          et plus rentré que celui du dessus. La composition dit ce que dit le titre. */}
       <div className="relative mx-auto w-full max-w-[1000px]">
-        <PlaqueLogo
-          prioritaire
-          largeur="clamp(190px, 24vw, 300px)"
+        {/* Signe SVG en gold directement sur le navy — plus d'immersion */}
+        <div
           className="animate-monter-en-place opacity-0"
-        />
+          style={{ animationDelay: "100ms" }}
+        >
+          <SigneVirtuose className="h-10 w-10 sm:h-12 sm:w-12" />
+        </div>
 
         <h1
-          className="t-display mt-12 animate-monter-en-place text-[clamp(2.6rem,8vw,5.75rem)] opacity-0"
+          className="t-display mt-8 animate-monter-en-place text-[clamp(2.6rem,8vw,5.75rem)] opacity-0"
           style={{ animationDelay: "220ms" }}
         >
           Transformez votre audience
@@ -97,20 +97,20 @@ export function Hero() {
         </h1>
 
         <p
-          className="mt-9 max-w-[44ch] animate-monter-en-place pl-[3vw] text-[1.1875rem] leading-relaxed text-steel opacity-0 sm:pl-16 sm:text-[1.3125rem]"
+          className="mt-8 max-w-[46ch] animate-monter-en-place pl-[3vw] text-[1.1875rem] leading-relaxed text-steel opacity-0 sm:pl-16 sm:text-[1.3125rem]"
           style={{ animationDelay: "400ms" }}
         >
-          Un programme d&apos;accompagnement guidé pour construire, lancer et optimiser votre système
-          d&apos;acquisition et de conversion.
+          Un programme d&apos;accompagnement guidé pour construire, lancer et optimiser votre
+          système d&apos;acquisition et de conversion.
         </p>
 
         <div
-          className="mt-11 flex animate-monter-en-place flex-wrap items-center gap-x-9 gap-y-5 pl-[6vw] opacity-0 sm:pl-32"
+          className="mt-10 flex animate-monter-en-place flex-wrap items-center gap-x-9 gap-y-5 pl-[6vw] opacity-0 sm:pl-32"
           style={{ animationDelay: "560ms" }}
         >
           <Link
             href="/signup"
-            className="t-meta rounded-[3px] bg-gold px-7 py-4 text-[1.0625rem] text-ink transition-colors hover:bg-amber"
+            className="t-meta rounded-[3px] bg-gold px-7 py-4 text-[1.0625rem] text-ink transition-all hover:bg-amber hover:shadow-[0_0_24px_rgba(240,185,40,0.35)]"
           >
             Construire mon système de vente
           </Link>
@@ -122,12 +122,32 @@ export function Hero() {
           </a>
         </div>
 
-        <Link
-          href="/login"
-          className="mt-8 inline-block animate-monter-en-place pl-[9vw] text-sm text-steel/85 opacity-0 underline-offset-4 hover:text-paper hover:underline sm:pl-48"
+        {/* Preuve sociale : avatars + compteur */}
+        <div
+          className="mt-10 flex animate-monter-en-place items-center gap-3 pl-[6vw] opacity-0 sm:pl-32"
           style={{ animationDelay: "680ms" }}
         >
-          Déjà un compte ? Se connecter
+          <div className="flex -space-x-2">
+            {AVATAR_INITIALES.map((init) => (
+              <div
+                key={init}
+                className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-ink bg-navy text-[0.625rem] font-bold text-paper"
+              >
+                {init}
+              </div>
+            ))}
+          </div>
+          <p className="text-[0.8125rem] text-steel/80">
+            Déjà <span className="font-semibold text-paper">+200</span> entrepreneurs accompagnés
+          </p>
+        </div>
+
+        <Link
+          href="/login"
+          className="mt-6 inline-block animate-monter-en-place pl-[9vw] text-sm text-steel/60 opacity-0 underline-offset-4 hover:text-paper hover:underline sm:pl-48"
+          style={{ animationDelay: "760ms" }}
+        >
+          Déjà membre ? Se connecter
         </Link>
       </div>
     </section>

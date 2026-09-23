@@ -1,44 +1,57 @@
-import { Section } from "./Section";
+"use client";
 
-// Les quatre frictions descendent, se décalent et rétrécissent : le signal
-// se perd. Le filet qui les précède raccourcit d'autant. Aucune carte.
+import { useEffect, useRef, useState } from "react";
+import { Section } from "./Section";
+import { AlertCircle, TrendingDown, EyeOff, BarChart3 } from "lucide-react";
+
 const FRICTIONS = [
   {
     titre: "Une offre floue",
     description:
       "Vos prospects ne comprennent pas en une phrase ce que vous vendez ni pourquoi vous.",
+    icone: AlertCircle,
     filet: 100,
-    taille: "clamp(1.6rem, 3.4vw, 2.4rem)",
-    couleur: "#101D38",
-    decalage: 0,
   },
   {
     titre: "Une audience sans funnel",
     description: "Vous publiez, mais rien ne transforme vos abonnés en prospects qualifiés.",
+    icone: TrendingDown,
     filet: 68,
-    taille: "clamp(1.45rem, 3vw, 2.1rem)",
-    couleur: "#243356",
-    decalage: 5,
   },
   {
     titre: "Des prospects qui ne convertissent jamais",
     description: "Ils s'intéressent, puis disparaissent — aucune relance ne les ramène.",
+    icone: EyeOff,
     filet: 40,
-    taille: "clamp(1.3rem, 2.6vw, 1.8rem)",
-    couleur: "#3A4767",
-    decalage: 10,
   },
   {
     titre: "Aucune mesure de ce qui marche",
     description: "Vous avancez à l'instinct, sans savoir quelle action a réellement un impact.",
+    icone: BarChart3,
     filet: 16,
-    taille: "clamp(1.2rem, 2.2vw, 1.55rem)",
-    couleur: "#4B5772",
-    decalage: 15,
   },
 ];
 
 export function Probleme() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [revealed, setRevealed] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setRevealed(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.15, rootMargin: "0px 0px -40px 0px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <Section tone="light" haut={1240} bas={1140} intensite={0.05}>
       <h2 className="t-display max-w-[16ch] text-[clamp(2.1rem,5.4vw,3.9rem)] text-dark">
@@ -49,29 +62,29 @@ export function Probleme() {
         signal s&apos;affaiblit à chaque étape, jusqu&apos;à ne plus rien produire.
       </p>
 
-      <div className="mt-20 flex flex-col gap-14">
-        {FRICTIONS.map((friction) => (
-          <div
-            key={friction.titre}
-            style={{ marginLeft: `${friction.decalage}%` }}
-            className="max-w-[46ch]"
-          >
+      <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        {FRICTIONS.map((friction, index) => {
+          const Icone = friction.icone;
+          return (
             <div
-              aria-hidden="true"
-              className="mb-5 h-px bg-ochre"
-              style={{ width: `${friction.filet}%`, opacity: 0.25 + friction.filet / 240 }}
-            />
-            <h3
-              className="t-display-mid"
-              style={{ fontSize: friction.taille, color: friction.couleur }}
+              key={friction.titre}
+              ref={index === 0 ? ref : null}
+              className={`group rounded-[2px] border border-dark/8 bg-white p-6 transition-all duration-500 hover:-translate-y-1 hover:border-ochre/30 hover:shadow-[0_8px_32px_rgba(10,21,49,0.08)] ${
+                revealed ? "opacity-100" : "opacity-0"
+              }`}
+              style={{ transitionDelay: `${index * 100}ms` }}
             >
-              {friction.titre}
-            </h3>
-            <p className="mt-3 text-[1.0625rem]" style={{ color: friction.couleur }}>
-              {friction.description}
-            </p>
-          </div>
-        ))}
+              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-[2px] bg-ink/5 text-ochre transition-colors group-hover:bg-ochre/10">
+                <Icone className="h-5 w-5" />
+              </div>
+              <h3 className="t-display-mid text-[1.125rem] text-dark">{friction.titre}</h3>
+              <p className="mt-2 text-[0.9375rem] leading-relaxed text-secondary">
+                {friction.description}
+              </p>
+              <div className="mt-5 h-px bg-dark/8 transition-all group-hover:bg-ochre/40" style={{ width: `${friction.filet}%` }} />
+            </div>
+          );
+        })}
       </div>
     </Section>
   );

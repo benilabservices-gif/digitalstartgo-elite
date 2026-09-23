@@ -13,7 +13,7 @@ describe("Hero", () => {
 
   it("le lien de connexion pointe vers /login", () => {
     render(<Hero />);
-    expect(screen.getByRole("link", { name: "Déjà un compte ? Se connecter" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Déjà membre ? Se connecter" })).toHaveAttribute(
       "href",
       "/login"
     );

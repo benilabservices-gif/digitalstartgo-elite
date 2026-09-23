@@ -104,6 +104,123 @@ body {
   }
 }
 
+/* ─── Animations premium ─────────────────────────────────────────────────── */
+
+/* Shimmer doré subtil sur les CTA premium */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    #f0b928 0%,
+    #f8cc5a 25%,
+    #f0b928 50%,
+    #f8cc5a 75%,
+    #f0b928 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 3s linear infinite;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Glow doré pulsé pour les éléments premium */
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(240, 185, 40, 0.15); }
+  50% { box-shadow: 0 0 40px rgba(240, 185, 40, 0.35); }
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+/* Float subtil pour les éléments flottants */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+/* Fade-in avec léger slide-up pour les éléments qui apparaissent */
+@keyframes fade-slide-up {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-slide-up {
+  animation: fade-slide-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Stagger children delay utility */
+.stagger-children > * {
+  opacity: 0;
+  animation: fade-slide-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 80ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 160ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 240ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 320ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 400ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 480ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 560ms; }
+
+/* Smooth height transition for FAQ accordion */
+.accordion-content {
+  overflow: hidden;
+  transition: max-height 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+  max-height: 0;
+  opacity: 0;
+}
+
+.accordion-content.open {
+  max-height: 300px;
+  opacity: 1;
+}
+
+/* Gradient border utility */
+.gradient-border {
+  position: relative;
+  background: white;
+  border-radius: 2px;
+}
+
+.gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 2px;
+  padding: 1px;
+  background: linear-gradient(135deg, #f0b928, #d4a017, #f0b928);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.gradient-border:hover::before {
+  opacity: 1;
+}
+
+/* Rayon doré radial pour les fonds navy */
+.rayon-dore {
+  background-image: radial-gradient(
+    ellipse 60% 40% at 50% 0%,
+    rgba(240, 185, 40, 0.08) 0%,
+    transparent 70%
+  );
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -115,6 +232,11 @@ body {
     animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 1ms !important;
+  }
+  .animate-float,
+  .animate-glow-pulse,
+  .animate-shimmer {
+    animation: none !important;
   }
 }
 

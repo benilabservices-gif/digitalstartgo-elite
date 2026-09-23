@@ -12,19 +12,13 @@ const LIENS = [
   { href: "#faq", id: "faq", label: "FAQ" },
 ];
 
-/**
- * Parti pris : la nav est présente dès le premier pixel.
- * En haut de page elle est transparente et fait partie du Hero (fond encre) ;
- * passé le seuil elle prend son fond opaque. Le filet or sous la barre
- * n'est pas un décor : c'est la progression de lecture — ce qui rend inutile
- * l'ancien indicateur latéral.
- */
 export function MarketingNav() {
   const [pose, setPose] = useState(false);
   const [progres, setProgres] = useState(0);
   const [actif, setActif] = useState<string | null>(null);
   const [menuOuvert, setMenuOuvert] = useState(false);
   const brut = useRef(0);
+  const activeRef = useRef<HTMLAnchorElement | null>(null);
 
   useEffect(() => {
     let frame = 0;
@@ -69,29 +63,43 @@ export function MarketingNav() {
 
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-50 transition-colors duration-300 ${
-        pose || menuOuvert ? "bg-ink/95 backdrop-blur-md" : "bg-transparent"
+      className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
+        pose || menuOuvert
+          ? "bg-ink/90 backdrop-blur-xl shadow-[0_1px_0_rgba(240,185,40,0.15)]"
+          : "bg-transparent"
       }`}
     >
       <div className="mx-auto flex max-w-[1240px] items-center gap-6 px-6 py-4">
         <a href="#top" className="flex shrink-0 items-center gap-2.5 text-paper">
           <SigneVirtuose className="shrink-0" />
-          <span className="t-display-mid text-[1.0625rem]">Virtuose Funnel</span>
+          <div className="flex flex-col">
+            <span className="t-display-mid text-[1.0625rem] leading-none">Virtuose Funnel</span>
+            <span className="t-meta text-[0.625rem] leading-none text-steel/70">
+              Programme d&apos;accompagnement
+            </span>
+          </div>
         </a>
 
-        <nav aria-label="Sections de la page" className="ml-auto hidden items-center gap-7 lg:flex">
+        <nav aria-label="Sections de la page" className="ml-auto hidden items-center gap-8 lg:flex">
           {LIENS.map((lien) => {
             const estActif = actif === lien.id;
             return (
               <a
                 key={lien.href}
                 href={lien.href}
+                ref={estActif ? (el) => { activeRef.current = el; } : undefined}
                 aria-current={estActif ? "true" : undefined}
                 className={`t-meta relative py-1 text-sm transition-colors ${
                   estActif ? "text-gold" : "text-steel hover:text-paper"
                 }`}
               >
                 {lien.label}
+                {estActif && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute bottom-0 left-0 h-px w-full bg-gold transition-all duration-300"
+                  />
+                )}
               </a>
             );
           })}
@@ -106,7 +114,7 @@ export function MarketingNav() {
           </Link>
           <Link
             href="/signup"
-            className="t-meta rounded-[3px] bg-gold px-4 py-2 text-sm text-ink transition-colors hover:bg-amber"
+            className="group t-meta relative rounded-[3px] bg-gold px-4 py-2 text-sm text-ink transition-all hover:bg-amber hover:shadow-[0_0_20px_rgba(240,185,40,0.3)]"
           >
             Commencer
           </Link>
@@ -135,7 +143,7 @@ export function MarketingNav() {
       <div
         id="menu-mobile"
         hidden={!menuOuvert}
-        className="border-t border-steel/20 bg-ink px-6 pb-6 pt-2 lg:hidden"
+        className="border-t border-steel/20 bg-ink/95 backdrop-blur-xl px-6 pb-6 pt-2 lg:hidden"
       >
         <nav aria-label="Sections de la page">
           {LIENS.map((lien) => (
@@ -143,7 +151,9 @@ export function MarketingNav() {
               key={lien.href}
               href={lien.href}
               onClick={() => setMenuOuvert(false)}
-              className="t-display-mid block py-3 text-2xl text-paper"
+              className={`t-display-mid block py-3 text-2xl transition-colors ${
+                actif === lien.id ? "text-gold" : "text-paper"
+              }`}
             >
               {lien.label}
             </a>
@@ -158,14 +168,13 @@ export function MarketingNav() {
         </nav>
       </div>
 
-      {/* Progression de lecture : le filet reprend l'or des parois. */}
       <div
         className={`h-px w-full transition-colors duration-300 ${
-          pose ? "bg-steel/20" : "bg-transparent"
+          pose ? "bg-steel/15" : "bg-transparent"
         }`}
       >
         <div
-          className="h-px bg-gold"
+          className="h-px bg-gradient-to-r from-gold via-amber to-gold"
           style={{ width: `${progres * 100}%` }}
           role="progressbar"
           aria-label="Progression dans la page"
