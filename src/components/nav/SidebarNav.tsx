@@ -4,29 +4,69 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { ProfileRole } from "@/lib/profile/role";
+import { SigneVirtuose } from "@/components/marketing/LogoVirtuose";
 
 interface NavLinkItem {
   href: string;
   label: string;
+  icon?: string;
 }
 
 const BASE_ITEMS: NavLinkItem[] = [
-  { href: "/dashboard", label: "Mon Parcours" },
-  { href: "/diagnostic", label: "Diagnostic" },
-  { href: "/ressources", label: "Ressources" },
+  { href: "/dashboard", label: "Mon Parcours", icon: "home" },
+  { href: "/diagnostic", label: "Diagnostic", icon: "chart" },
+  { href: "/ressources", label: "Ressources", icon: "book" },
 ];
 
-const COACH_ITEM: NavLinkItem = { href: "/coach", label: "Coach" };
+const COACH_ITEM: NavLinkItem = { href: "/coach", label: "Revue coach", icon: "review" };
 const ADMIN_ITEMS: NavLinkItem[] = [
-  { href: "/admin/cohorts", label: "Admin" },
-  { href: "/admin/abonnements", label: "Abonnements" },
+  { href: "/admin/cohorts", label: "Cohortes", icon: "users" },
+  { href: "/admin/abonnements", label: "Abonnements", icon: "credit" },
 ];
 
 const COMING_SOON_LABELS = ["Virtuose AI", "Communauté"];
 
+function NavIcon({ name }: { name: string }) {
+  // Simple SVG icons for nav items
+  const icons: Record<string, JSX.Element> = {
+    home: (
+      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+      </svg>
+    ),
+    chart: (
+      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+      </svg>
+    ),
+    book: (
+      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+      </svg>
+    ),
+    review: (
+      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+      </svg>
+    ),
+    users: (
+      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+      </svg>
+    ),
+    credit: (
+      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+      </svg>
+    ),
+  };
+  return icons[name] ?? null;
+}
+
 export function SidebarNav({ role }: { role: ProfileRole }) {
   const pathname = usePathname();
   const router = useRouter();
+
   const items = [
     ...BASE_ITEMS,
     ...(role === "coach" ? [COACH_ITEM] : []),
@@ -41,37 +81,83 @@ export function SidebarNav({ role }: { role: ProfileRole }) {
   }
 
   return (
-    <nav className="hidden w-64 flex-col gap-1 border-r border-dark/5 bg-white p-4 sm:flex">
-      <p className="mb-4 px-2 text-lg font-extrabold text-ink">Virtuose Funnel</p>
-      {items.map((item) => (
-        <Link
-          key={item.href}
-          href={item.href}
-          className={`rounded-lg px-3 py-2 text-sm font-medium ${
-            pathname === item.href ? "bg-ochre/10 text-ochre" : "text-secondary hover:bg-paper"
-          }`}
+    <aside className="hidden w-64 flex-col border-r border-paper bg-ink pb-6 sm:flex">
+      {/* Logo */}
+      <div className="flex items-center gap-2.5 px-5 py-5">
+        <SigneVirtuose className="h-7 w-7" />
+        <div className="flex flex-col">
+          <span className="t-display-mid text-[0.9375rem] text-paper">Virtuose Funnel</span>
+          <span className="t-meta text-[0.5625rem] text-steel/60">Espace membre</span>
+        </div>
+      </div>
+
+      {/* Nav items */}
+      <nav className="flex-1 px-3">
+        <p className="mb-2 px-3 t-meta text-[0.625rem] uppercase tracking-widest text-steel/40">
+          Menu
+        </p>
+        <div className="flex flex-col gap-0.5">
+          {items.map((item) => {
+            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`group flex items-center gap-3 rounded-[2px] px-3 py-2.5 text-sm transition-all ${
+                  isActive
+                    ? "bg-gold/15 text-gold"
+                    : "text-steel/70 hover:bg-paper/10 hover:text-paper"
+                }`}
+              >
+                {item.icon && (
+                  <span className={`shrink-0 ${isActive ? "text-gold" : "text-steel/50 group-hover:text-steel"}`}>
+                    <NavIcon name={item.icon} />
+                  </span>
+                )}
+                <span className="font-medium">{item.label}</span>
+                {isActive && (
+                  <span aria-hidden="true" className="ml-auto h-1.5 w-1.5 rounded-full bg-gold" />
+                )}
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Coming soon */}
+        <div className="mt-6">
+          <p className="mb-2 px-3 t-meta text-[0.625rem] uppercase tracking-widest text-steel/30">
+            À venir
+          </p>
+          <div className="flex flex-col gap-0.5">
+            {COMING_SOON_LABELS.map((label) => (
+              <div
+                key={label}
+                className="flex items-center gap-3 rounded-[2px] px-3 py-2.5 text-sm text-steel/30"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-steel/20" />
+                <span className="flex-1 font-medium">{label}</span>
+                <span className="t-meta rounded-[2px] border border-steel/15 px-1.5 py-0.5 text-[0.5625rem] text-steel/30">
+                  Bientôt
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </nav>
+
+      {/* Sign out */}
+      <div className="border-t border-paper/10 px-3 pt-3">
+        <button
+          type="button"
+          onClick={handleSignOut}
+          className="flex w-full items-center gap-3 rounded-[2px] px-3 py-2.5 text-sm text-steel/60 transition-colors hover:bg-paper/10 hover:text-paper"
         >
-          {item.label}
-        </Link>
-      ))}
-      {COMING_SOON_LABELS.map((label) => (
-        <span
-          key={label}
-          className="flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm font-medium text-secondary/50"
-        >
-          {label}
-          <span className="t-meta rounded-[2px] border border-dark/12 px-1.5 py-[1px] text-[10px] text-secondary/50">
-            Bientôt
-          </span>
-        </span>
-      ))}
-      <button
-        type="button"
-        onClick={handleSignOut}
-        className="mt-auto rounded-lg border-t border-dark/5 px-3 py-2 pt-4 text-left text-sm font-medium text-secondary hover:bg-paper"
-      >
-        Se déconnecter
-      </button>
-    </nav>
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          Se déconnecter
+        </button>
+      </div>
+    </aside>
   );
 }

@@ -8,14 +8,14 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("SidebarNav", () => {
-  it("n'affiche pas le lien Coach pour un participant", () => {
+  it("n'affiche pas le lien Revue coach pour un participant", () => {
     render(<SidebarNav role="participant" />);
-    expect(screen.queryByRole("link", { name: "Coach" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Revue coach" })).not.toBeInTheDocument();
   });
 
-  it("affiche le lien Coach pour un coach", () => {
+  it("affiche le lien Revue coach pour un coach", () => {
     render(<SidebarNav role="coach" />);
-    expect(screen.getByRole("link", { name: "Coach" })).toHaveAttribute("href", "/coach");
+    expect(screen.getByRole("link", { name: "Revue coach" })).toHaveAttribute("href", "/coach");
   });
 
   it("affiche les sections à venir comme non cliquables", () => {
@@ -29,13 +29,15 @@ describe("SidebarNav", () => {
     expect(screen.getByRole("link", { name: "Ressources" })).toHaveAttribute("href", "/ressources");
   });
 
-  it("n'affiche pas le lien Admin pour un participant", () => {
+  it("n'affiche pas les liens Admin pour un participant", () => {
     render(<SidebarNav role="participant" />);
-    expect(screen.queryByRole("link", { name: "Admin" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Cohortes" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Abonnements" })).not.toBeInTheDocument();
   });
 
-  it("affiche le lien Admin pour un admin", () => {
+  it("affiche les liens Admin pour un admin", () => {
     render(<SidebarNav role="admin" />);
-    expect(screen.getByRole("link", { name: "Admin" })).toHaveAttribute("href", "/admin/cohorts");
+    expect(screen.getByRole("link", { name: "Cohortes" })).toHaveAttribute("href", "/admin/cohorts");
+    expect(screen.getByRole("link", { name: "Abonnements" })).toHaveAttribute("href", "/admin/abonnements");
   });
 });

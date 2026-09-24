@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { Card } from "@/components/ui/Card";
+import { PremiumCard } from "@/components/app-ui/PremiumCard";
 import { Badge } from "@/components/ui/Badge";
 import { MissionSubmissionForm } from "@/components/missions/MissionSubmissionForm";
 import { formatDateTime } from "@/lib/missions/format";
@@ -13,6 +13,7 @@ import {
   toMissionStatus,
   type SubmissionStatus,
 } from "@/lib/missions/status";
+import { Clock, FileText, History, CheckCircle2, AlertCircle } from "lucide-react";
 
 interface MissionRow {
   id: string;
@@ -50,9 +51,7 @@ export default async function MissionPage({ params }: { params: { id: string } }
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect("/login");
-  }
+  if (!user) redirect("/login");
 
   const { data: mission } = await supabase
     .from("missions")
@@ -60,12 +59,8 @@ export default async function MissionPage({ params }: { params: { id: string } }
     .eq("id", params.id)
     .maybeSingle();
 
-  if (!mission) {
-    notFound();
-  }
+  if (!mission) notFound();
 
-  // PostgREST renvoie un objet (et non un tableau) pour une relation
-  // plusieurs-vers-un ; le client Supabase non typé ne peut pas le déduire.
   const missionRow = mission as unknown as MissionRow;
 
   const { data: progress } = await supabase
@@ -89,92 +84,127 @@ export default async function MissionPage({ params }: { params: { id: string } }
   const lastSubmission = submissions[0] ?? null;
   const blockedReason = submissionBlockedReason(status);
 
+  // Status icon
+  const statusIcon = {
+    a_faire: <AlertCircle className="h-4 w-4 text-secondary" />,
+    en_cours: <Clock className="h-4 w-4 text-ochre" />,
+    soumis: <FileText className="h-4 w-4 text-ochre" />,
+    a_corriger: <AlertCircle className="h-4 w-4 text-error" />,
+    valide: <CheckCircle2 className="h-4 w-4 text-success" />,
+  }[status] ?? <AlertCircle className="h-4 w-4 text-secondary" />;
+
   return (
-    <div className="mx-auto max-w-3xl px-6 py-10">
-      <Link href="/dashboard" className="text-sm font-medium text-ochre hover:underline">
-        ← Retour à mon parcours
+    <div className="mx-auto max-w-3xl px-6 py-10 pb-24 sm:pb-10">
+      {/* Back link */}
+      <Link href="/dashboard" className="mb-8 inline-flex items-center gap-1.5 text-sm font-medium text-ochre hover:underline">
+        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
+        Retour à mon parcours
       </Link>
 
-      <p className="mt-6 text-sm font-semibold uppercase tracking-widest text-ochre">
-        Étape {missionRow.stages?.number ?? missionRow.number} ·{" "}
-        {missionRow.stages?.title ?? "Mon Parcours"}
-      </p>
-      <h1 className="text-3xl font-extrabold text-dark">{missionRow.title}</h1>
-      <div className="mb-8 mt-3 flex items-center gap-3">
-        <Badge tone={MISSION_STATUS_TONE[status]}>{MISSION_STATUS_LABELS[status]}</Badge>
-        <span className="text-sm text-secondary">
-          Durée estimée : {missionRow.estimated_duration_minutes} min
-        </span>
-      </div>
-
-      <Card title="Objectif de la mission">
-        <p className="text-dark">{missionRow.objective}</p>
-      </Card>
-
-      <div className="mt-6">
-        <Card title="Ressources">
-          <p className="text-secondary">
-            Ressources bientôt disponibles. En attendant, appuyez-vous sur l&apos;objectif
-            ci-dessus et sur les retours de votre coach.
-          </p>
-        </Card>
-      </div>
-
-      {lastSubmission?.feedback_coach && (
-        <div className="mt-6">
-          <Card title="Retour de votre coach">
-            <p className="whitespace-pre-wrap text-dark">{lastSubmission.feedback_coach}</p>
-            <p className="mt-3 text-xs text-secondary">
-              Reçu le {formatDateTime(lastSubmission.updated_at)}
-            </p>
-          </Card>
+      {/* Header */}
+      <div className="mb-8">
+        <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-ochre">
+          Étape {missionRow.stages?.number ?? missionRow.number} · {missionRow.stages?.title ?? "Mon Parcours"}
+        </p>
+        <div className="flex items-center gap-3">
+          {statusIcon}
+          <h1 className="t-display-mid text-[clamp(1.5rem,4vw,2.25rem)] text-dark">{missionRow.title}</h1>
         </div>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <Badge tone={MISSION_STATUS_TONE[status]}>{MISSION_STATUS_LABELS[status]}</Badge>
+          <span className="flex items-center gap-1.5 text-sm text-secondary">
+            <Clock className="h-3.5 w-3.5" />
+            Durée estimée : {missionRow.estimated_duration_minutes} min
+          </span>
+        </div>
+      </div>
+
+      {/* Objectif */}
+      <PremiumCard title="Objectif de la mission" className="mb-6">
+        <p className="text-[1.0625rem] leading-relaxed text-dark">{missionRow.objective}</p>
+      </PremiumCard>
+
+      {/* Ressources */}
+      <PremiumCard title="Ressources" className="mb-6" subtitle="Des guides pratiques vous attendent.">
+        <p className="text-sm text-secondary">
+          Ressources bientôt disponibles. En attendant, appuyez-vous sur l&apos;objectif ci-dessus et sur les retours de votre coach.
+        </p>
+      </PremiumCard>
+
+      {/* Feedback coach */}
+      {lastSubmission?.feedback_coach && (
+        <PremiumCard
+          title="Retour de votre coach"
+          className="mb-6 border-l-[3px] border-l-gold"
+          subtitle={`Reçu le ${formatDateTime(lastSubmission.updated_at)}`}
+        >
+          <p className="whitespace-pre-wrap text-[1.0625rem] leading-relaxed text-dark">
+            {lastSubmission.feedback_coach}
+          </p>
+        </PremiumCard>
       )}
 
-      <div className="mt-6">
-        <Card title={status === "a_corriger" ? "Renvoyer mon livrable" : "Soumettre mon livrable"}>
-          {canSubmitMission(status) ? (
-            <MissionSubmissionForm
-              missionId={missionRow.id}
-              missionProgressId={progress?.id ?? null}
-              isCorrection={status === "a_corriger"}
-            />
-          ) : (
-            <p className="text-secondary">{blockedReason}</p>
-          )}
-        </Card>
-      </div>
+      {/* Soumission */}
+      <PremiumCard
+        title={status === "a_corriger" ? "Renvoyer mon livrable" : "Soumettre mon livrable"}
+        subtitle={status === "a_corriger" ? "Votre coach a demandé des modifications." : "Décrivez votre livrable ou collez le lien."}
+        className="mb-6"
+      >
+        {canSubmitMission(status) ? (
+          <MissionSubmissionForm
+            missionId={missionRow.id}
+            missionProgressId={progress?.id ?? null}
+            isCorrection={status === "a_corriger"}
+          />
+        ) : (
+          <div className="flex items-center gap-2 text-sm text-secondary">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            {blockedReason}
+          </div>
+        )}
+      </PremiumCard>
 
+      {/* Historique */}
       {submissions.length > 0 && (
-        <div className="mt-6">
-          <Card title="Historique de mes soumissions">
-            <ol className="flex flex-col gap-4">
-              {submissions.map((submission) => (
-                <li
-                  key={submission.id}
-                  className="border-l-2 border-dark/10 pl-4"
-                >
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Badge tone={SUBMISSION_TONE[submission.statut]}>
-                      {SUBMISSION_LABELS[submission.statut]}
-                    </Badge>
-                    <span className="text-xs text-secondary">
-                      Soumis le {formatDateTime(submission.created_at)}
-                    </span>
-                  </div>
-                  <p className="mt-2 whitespace-pre-wrap break-words text-sm text-dark">
-                    {submission.contenu}
+        <PremiumCard title="Historique de mes soumissions" subtitle={`${submissions.length} soumission(s)`}>
+          <ol className="space-y-4">
+            {submissions.map((submission, index) => (
+              <li
+                key={submission.id}
+                className={`relative pl-6 ${index < submissions.length - 1 ? "pb-4 border-b border-dark/6" : ""}`}
+              >
+                {/* Timeline dot */}
+                <span
+                  className={`absolute left-0 top-1.5 h-3 w-3 rounded-full border-2 ${
+                    submission.statut === "valide"
+                      ? "border-success bg-success"
+                      : submission.statut === "a_corriger"
+                      ? "border-error bg-error"
+                      : "border-ochre bg-paper"
+                  }`}
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge tone={SUBMISSION_TONE[submission.statut]}>
+                    {SUBMISSION_LABELS[submission.statut]}
+                  </Badge>
+                  <span className="text-xs text-secondary">
+                    {formatDateTime(submission.created_at)}
+                  </span>
+                </div>
+                <p className="mt-2 whitespace-pre-wrap break-words text-sm text-dark">
+                  {submission.contenu}
+                </p>
+                {submission.feedback_coach && (
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-secondary italic">
+                    Coach : {submission.feedback_coach}
                   </p>
-                  {submission.feedback_coach && (
-                    <p className="mt-2 whitespace-pre-wrap text-sm text-secondary">
-                      Coach : {submission.feedback_coach}
-                    </p>
-                  )}
-                </li>
-              ))}
-            </ol>
-          </Card>
-        </div>
+                )}
+              </li>
+            ))}
+          </ol>
+        </PremiumCard>
       )}
     </div>
   );

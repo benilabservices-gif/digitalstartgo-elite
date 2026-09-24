@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { validateOnboardingProfile, type OnboardingProfileInput } from "@/lib/onboarding/validation";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { PremiumCard } from "@/components/app-ui/PremiumCard";
 
 const GOALS = [
   "Vendre une formation",
@@ -77,25 +77,29 @@ export default function OnboardingPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-10">
-      <p className="text-sm font-semibold uppercase tracking-widest text-ochre">
-        Bienvenue dans Virtuose Funnel
+      <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-ochre">
+        Bienvenue
       </p>
-      <h1 className="mb-8 text-3xl font-extrabold text-dark">Parlez-nous de votre activité</h1>
+      <h1 className="t-display-mid mb-8 text-[clamp(1.5rem,4vw,2rem)] text-dark">
+        Parlez-nous de votre activité
+      </h1>
 
-      <Card>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <label className="text-sm font-medium text-dark">
-            Votre objectif
+      <PremiumCard>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-dark">
+              Votre objectif principal
+            </label>
             <select
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-dark/10 px-3 py-2"
+              className="w-full rounded-[2px] border border-dark/12 bg-paper px-3 py-2.5 text-sm text-dark focus:border-gold/60 focus:outline-none"
             >
               {GOALS.map((option) => (
                 <option key={option}>{option}</option>
               ))}
             </select>
-          </label>
+          </div>
 
           {(
             [
@@ -106,61 +110,62 @@ export default function OnboardingPage() {
               ["mainChannel", "Canal principal"],
             ] as const
           ).map(([key, label]) => (
-            <label key={key} className="text-sm font-medium text-dark">
-              {label}
+            <div key={key}>
+              <label className="mb-1.5 block text-sm font-semibold text-dark">{label}</label>
               <input
                 type="text"
                 value={(form[key] as string) ?? ""}
                 onChange={(e) => updateField(key, e.target.value)}
-                className="mt-1 w-full rounded-lg border border-dark/10 px-3 py-2"
+                className="w-full rounded-[2px] border border-dark/12 bg-paper px-3 py-2.5 text-sm text-dark focus:border-gold/60 focus:outline-none"
               />
-              {errors[key] && <p className="mt-1 text-sm text-error">{errors[key]}</p>}
-            </label>
+              {errors[key] && <p className="mt-1 text-xs text-error">{errors[key]}</p>}
+            </div>
           ))}
 
-          <label className="text-sm font-medium text-dark">
-            Prix de votre offre (FCFA)
-            <input
-              type="number"
-              value={form.price ?? ""}
-              onChange={(e) => updateField("price", Number(e.target.value))}
-              className="mt-1 w-full rounded-lg border border-dark/10 px-3 py-2"
-            />
-            {errors.price && <p className="mt-1 text-sm text-error">{errors.price}</p>}
-          </label>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-dark">Prix (FCFA)</label>
+              <input
+                type="number"
+                value={form.price ?? ""}
+                onChange={(e) => updateField("price", Number(e.target.value))}
+                className="w-full rounded-[2px] border border-dark/12 bg-paper px-3 py-2.5 text-sm text-dark focus:border-gold/60 focus:outline-none"
+              />
+              {errors.price && <p className="mt-1 text-xs text-error">{errors.price}</p>}
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-dark">Taille audience</label>
+              <input
+                type="number"
+                value={form.currentAudienceSize ?? ""}
+                onChange={(e) => updateField("currentAudienceSize", Number(e.target.value))}
+                className="w-full rounded-[2px] border border-dark/12 bg-paper px-3 py-2.5 text-sm text-dark focus:border-gold/60 focus:outline-none"
+              />
+              {errors.currentAudienceSize && (
+                <p className="mt-1 text-xs text-error">{errors.currentAudienceSize}</p>
+              )}
+            </div>
+          </div>
 
-          <label className="text-sm font-medium text-dark">
-            Taille de votre audience actuelle
-            <input
-              type="number"
-              value={form.currentAudienceSize ?? ""}
-              onChange={(e) => updateField("currentAudienceSize", Number(e.target.value))}
-              className="mt-1 w-full rounded-lg border border-dark/10 px-3 py-2"
-            />
-            {errors.currentAudienceSize && (
-              <p className="mt-1 text-sm text-error">{errors.currentAudienceSize}</p>
-            )}
-          </label>
-
-          <label className="text-sm font-medium text-dark">
-            Objectif mensuel (FCFA)
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-dark">Objectif mensuel (FCFA)</label>
             <input
               type="number"
               value={form.monthlyGoalFcfa ?? ""}
               onChange={(e) => updateField("monthlyGoalFcfa", Number(e.target.value))}
-              className="mt-1 w-full rounded-lg border border-dark/10 px-3 py-2"
+              className="w-full rounded-[2px] border border-dark/12 bg-paper px-3 py-2.5 text-sm text-dark focus:border-gold/60 focus:outline-none"
             />
             {errors.monthlyGoalFcfa && (
-              <p className="mt-1 text-sm text-error">{errors.monthlyGoalFcfa}</p>
+              <p className="mt-1 text-xs text-error">{errors.monthlyGoalFcfa}</p>
             )}
-          </label>
+          </div>
 
           {submitError && <p className="text-sm text-error">{submitError}</p>}
-          <Button type="submit" disabled={submitting}>
+          <Button type="submit" disabled={submitting} className="w-full">
             {submitting ? "Enregistrement..." : "Continuer vers mon diagnostic"}
           </Button>
         </form>
-      </Card>
+      </PremiumCard>
     </div>
   );
 }
