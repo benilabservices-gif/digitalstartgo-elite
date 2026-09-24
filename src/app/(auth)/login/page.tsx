@@ -34,10 +34,10 @@ export default function LoginPage() {
     <main className="relative flex min-h-screen overflow-hidden bg-ink">
       {/* Left panel — branding */}
       <div className="hidden w-1/2 flex-col justify-between p-12 lg:flex">
-        <div className="flex items-center gap-3 text-paper">
-          <SigneVirtuose className="h-10 w-10" />
-          <span className="t-display-mid text-xl">Virtuose Funnel</span>
-        </div>
+          <Link href="/" className="flex items-center gap-3 text-paper hover:opacity-80 transition-opacity">
+            <SigneVirtuose className="h-10 w-10" />
+            <span className="t-display-mid text-xl">Virtuose Funnel</span>
+          </Link>
         <div>
           <p className="mt-8 t-display text-[clamp(2rem,3vw,3.5rem)] leading-tight text-paper">
             Votre système de vente,<br />construit étape par étape.
@@ -52,10 +52,10 @@ export default function LoginPage() {
       {/* Right panel — form */}
       <div className="flex w-full items-center justify-center p-6 lg:w-1/2">
         <div className="w-full max-w-sm">
-          <div className="mb-8 lg:hidden flex items-center gap-2.5 text-paper">
-            <SigneVirtuose className="h-8 w-8" />
-            <span className="t-display-mid text-lg text-paper">Virtuose Funnel</span>
-          </div>
+            <Link href="/" className="flex items-center gap-2.5 text-paper hover:opacity-80 transition-opacity">
+              <SigneVirtuose className="h-8 w-8" />
+              <span className="t-display-mid text-lg text-paper">Virtuose Funnel</span>
+            </Link>
           <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-ochre">Connexion</p>
           <h1 className="t-display-mid text-2xl text-paper">Bon retour parmi nous</h1>
           <p className="mt-2 text-sm text-steel">Accédez à votre espace de travail.</p>
