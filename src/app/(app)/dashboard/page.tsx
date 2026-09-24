@@ -9,7 +9,7 @@ import {
   toMissionStatus,
 } from "@/lib/missions/status";
 import { deriveCohortStatus } from "@/lib/cohorts/status";
-import { BarChart3, ChevronRight, Play } from "lucide-react";
+import { ArrowRight, Play, Sparkles } from "lucide-react";
 
 const COHORT_STATUS_LABELS = {
   a_venir: "À venir",
@@ -43,7 +43,7 @@ async function CohortCard({ cohortId }: { cohortId: string }) {
           </span>
         </div>
         <Link href="/dashboard" className="flex items-center gap-1 text-sm font-medium text-ochre hover:underline">
-          Voir détails <ChevronRight className="h-3.5 w-3.5" />
+          Voir détails <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       </div>
     </PremiumCard>
@@ -68,7 +68,7 @@ export default async function DashboardPage() {
 
   const { data: stages } = await supabase
     .from("stages")
-    .select("id, number, title, missions(id, number, title)")
+    .select("id, number, slug, title, missions(id, number, title)")
     .order("order_index");
 
   const { data: progressRows } = await supabase
@@ -84,13 +84,30 @@ export default async function DashboardPage() {
   ).length;
   const overallProgress = allMissions.length > 0 ? (validatedCount / allMissions.length) * 100 : 0;
 
-  const currentStage = (stages ?? []).find((stage) =>
-    stage.missions.some((mission) => progressByMission.get(mission.id) !== "valide")
-  );
-  const currentMission = currentStage?.missions[0];
+  // Find current (first non-validated) mission
+  const currentMission = allMissions.find((m) => progressByMission.get(m.id) !== "valide");
   const currentStatus = currentMission
     ? toMissionStatus(progressByMission.get(currentMission.id))
     : null;
+
+  // Find which stage the current mission belongs to
+  const currentStage = (stages ?? []).find((stage) =>
+    stage.missions.some((m) => m.id === currentMission?.id)
+  );
+
+  // Find next unlocked stage
+  const nextStageNum = currentMission
+    ? ((currentStage?.number ?? 1) + 1)
+    : 1;
+  const nextStage = (stages ?? []).find((s) => s.number === nextStageNum);
+
+  // Check notifications count
+  const { data: notifRows } = await supabase
+    .from("notifications")
+    .select("id")
+    .eq("profile_id", user.id)
+    .eq("read", false);
+  const unreadCount = (notifRows ?? []).length;
 
   // Compute stage-level stats
   const stageStats = (stages ?? []).map((stage) => {
@@ -102,26 +119,34 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10 pb-24 sm:pb-10">
-      {/* Header */}
-      <div className="mb-10">
+      {/* Header avec greeting contextuel */}
+      <div className="mb-8">
         <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-ochre">
           Bonjour, {profile.business_name ?? "Participant"}
+          {unreadCount > 0 && (
+            <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-gold/15 px-2 py-0.5 text-[0.625rem] text-gold">
+              <Sparkles className="h-3 w-3" />
+              {unreadCount} nouveau{unreadCount > 1 ? "x" : ""}
+            </span>
+          )}
         </p>
         <h1 className="t-display-mid text-[clamp(1.75rem,4vw,2.5rem)] text-dark">
           Votre système de vente
         </h1>
         <p className="mt-2 text-[1.0625rem] text-secondary">
-          Voici ce qui compte aujourd&apos;hui. Continuez là où vous en êtes.
+          {currentMission
+            ? `Vous êtes à l&apos;étape ${String(currentStage?.number ?? "?").padStart(2, "0")} — ${currentStage?.title ?? ""}. Continuez là où vous en êtes.`
+            : "Parfait ! Toutes vos étapes sont terminées. Vous avez construit votre système de vente."}
         </p>
       </div>
 
       {/* Stats grid */}
       <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatBadge label="Funnel Score" value={`${validatedCount}/${allMissions.length}`} sub="missions validées" tone="gold" />
-        <StatBadge label="Étape en cours" value={currentStage ? String(currentStage.number).padStart(2, "0") : "—"} sub={currentStage?.title ?? ""} />
+        <StatBadge label="Étape actuelle" value={currentStage ? String(currentStage.number).padStart(2, "0") : "—"} sub={currentStage?.title ?? ""} />
         <StatBadge label="Progression" value={`${Math.round(overallProgress)}%`} sub="du parcours" />
         <StatBadge
-          label="Statut"
+          label="Dernier statut"
           value={currentStatus ? MISSION_STATUS_LABELS[currentStatus].split(" ")[0] : "—"}
           sub={currentStatus ? MISSION_STATUS_LABELS[currentStatus] : "En attente"}
           tone={currentStatus === "valide" ? "success" : currentStatus === "a_corriger" ? "error" : "default"}
@@ -137,29 +162,52 @@ export default async function DashboardPage() {
         />
       </PremiumCard>
 
-      {/* Mission actuelle */}
+      {/* CTA principal — Mission actuelle */}
       {currentMission && currentStatus && (
         <PremiumCard className="mb-6 border-l-[3px] border-l-gold" glow>
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
-              <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-ochre">
-                Mission actuelle
-              </p>
-              <h2 className="t-display-mid text-xl text-dark">{currentMission.title}</h2>
-              <p className="mt-1 text-sm text-secondary">
-                Étape {String(currentStage?.number ?? "?").padStart(2, "0")} · {currentStage?.title ?? ""}
-              </p>
+              <div className="flex items-center gap-2">
+                <span className="t-meta rounded-full bg-gold/15 px-2 py-0.5 text-[0.6875rem] text-gold">
+                  Étape {String(currentStage?.number ?? "?").padStart(2, "0")}
+                </span>
+                <Badge tone={MISSION_STATUS_TONE[currentStatus]}>{MISSION_STATUS_LABELS[currentStatus]}</Badge>
+              </div>
+              <h2 className="t-display-mid mt-2 text-xl text-dark">{currentMission.title}</h2>
+              <p className="mt-1 text-sm text-secondary">{currentStage?.title ?? ""}</p>
             </div>
-            <div className="flex shrink-0 items-center gap-3">
-              <Badge tone={MISSION_STATUS_TONE[currentStatus]}>{MISSION_STATUS_LABELS[currentStatus]}</Badge>
+            <Link
+              href={`/missions/${currentMission.id}`}
+              className="group flex shrink-0 items-center gap-2 rounded-[2px] bg-gold px-5 py-3 text-sm font-semibold text-ink transition-all hover:bg-amber hover:shadow-[0_0_24px_rgba(240,185,40,0.4)]"
+            >
+              <Play className="h-4 w-4" />
+              Continuer
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          </div>
+        </PremiumCard>
+      )}
+
+      {/* Tous terminé */}
+      {!currentMission && (
+        <PremiumCard className="mb-6 text-center border-l-[3px] border-l-success" glow>
+          <div className="flex flex-col items-center gap-2">
+            <svg className="h-12 w-12 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h2 className="t-display-mid text-2xl text-dark">Parcours terminé !</h2>
+            <p className="text-secondary">
+              Félicitations, vous avez complété les 8 étapes. Votre système de vente est en place.
+            </p>
+            {nextStage && (
               <Link
-                href={`/missions/${currentMission.id}`}
-                className="flex items-center gap-1.5 rounded-[2px] bg-gold px-4 py-2.5 text-sm font-semibold text-ink transition-all hover:bg-amber hover:shadow-[0_0_16px_rgba(240,185,40,0.3)]"
+                href={`/parcours/${nextStage.slug}`}
+                className="mt-4 flex items-center gap-2 rounded-[2px] border border-gold/30 bg-gold/5 px-4 py-2 text-sm font-medium text-ochre hover:bg-gold/10"
               >
-                <Play className="h-3.5 w-3.5" />
-                Continuer
+                <Sparkles className="h-4 w-4" />
+                Consulter les ressources de l&apos;étape {String(nextStage.number).padStart(2, "0")}
               </Link>
-            </div>
+            )}
           </div>
         </PremiumCard>
       )}
@@ -170,7 +218,9 @@ export default async function DashboardPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-ochre/10">
-                <BarChart3 className="h-5 w-5 text-ochre" />
+                <svg className="h-5 w-5 text-ochre" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                </svg>
               </div>
               <div>
                 <p className="font-semibold text-dark">File de revue</p>
@@ -181,7 +231,7 @@ export default async function DashboardPage() {
               href="/coach"
               className="flex items-center gap-1 text-sm font-semibold text-ochre hover:underline"
             >
-              Ouvrir <ChevronRight className="h-4 w-4" />
+              Ouvrir <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         </PremiumCard>

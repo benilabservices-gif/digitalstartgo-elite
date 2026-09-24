@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { ProfileRole } from "@/lib/profile/role";
 import { SigneVirtuose } from "@/components/marketing/LogoVirtuose";
 import { useEffect, useState } from "react";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 interface Stage {
   id: string;
@@ -282,17 +283,18 @@ export function SidebarNav({ role }: { role: ProfileRole }) {
       </nav>
 
       {/* Sign out */}
-      <div className="border-t border-paper/10 px-3 pt-3">
+      <div className="border-t border-paper/10 px-3 pt-3 flex items-center justify-between">
         <button
           type="button"
           onClick={handleSignOut}
-          className="flex w-full items-center gap-3 rounded-[2px] px-3 py-2.5 text-sm text-steel/60 transition-colors hover:bg-paper/10 hover:text-paper"
+          className="flex flex-1 items-center gap-3 rounded-[2px] px-3 py-2.5 text-sm text-steel/60 transition-colors hover:bg-paper/10 hover:text-paper"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
           Se déconnecter
         </button>
+        <NotificationBell />
       </div>
     </aside>
   );

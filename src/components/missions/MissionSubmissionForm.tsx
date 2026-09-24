@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { SUBMISSION_MAX_LENGTH, validateSubmissionContent } from "@/lib/missions/status";
+import { CheckCircle2, Send, Loader2 } from "lucide-react";
 
 interface MissionSubmissionFormProps {
   missionId: string;
@@ -12,17 +13,21 @@ interface MissionSubmissionFormProps {
   missionProgressId: string | null;
   /** Vrai si une soumission précédente a été renvoyée pour correction. */
   isCorrection: boolean;
+  /** Titre de la mission pour les messages de succès */
+  missionTitle?: string;
 }
 
 export function MissionSubmissionForm({
   missionId,
   missionProgressId,
   isCorrection,
+  missionTitle,
 }: MissionSubmissionFormProps) {
   const router = useRouter();
   const [contenu, setContenu] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -49,9 +54,7 @@ export function MissionSubmissionForm({
     let progressId = missionProgressId;
 
     // La ligne de progression n'existe pas tant que le participant n'a rien fait
-    // sur la mission : on la crée au statut par défaut 'a_faire'. C'est ensuite
-    // le trigger côté base qui la passera à 'soumis' à l'insertion de la
-    // soumission — le participant n'a pas le droit d'écrire ce statut lui-même.
+    // sur la mission : on la crée au statut par défaut 'a_faire'.
     if (!progressId) {
       const { data: created } = await supabase
         .from("mission_progress")
@@ -62,7 +65,6 @@ export function MissionSubmissionForm({
       if (created) {
         progressId = created.id as string;
       } else {
-        // Ligne déjà créée entre-temps (second onglet, double clic) : on la relit.
         const { data: existing } = await supabase
           .from("mission_progress")
           .select("id")
@@ -93,8 +95,51 @@ export function MissionSubmissionForm({
       return;
     }
 
+    // Créer une notification pour le participant
+    try {
+      await fetch("/api/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "submitted",
+          missionTitle: missionTitle ?? "Votre livrable",
+        }),
+      });
+    } catch {
+      // silencieux
+    }
+
     setContenu("");
+    setSubmitted(true);
     router.refresh();
+  }
+
+  if (submitted) {
+    return (
+      <div className="flex flex-col items-center gap-3 rounded-[2px] border border-success/30 bg-success/5 px-6 py-8 text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-success/15">
+          <CheckCircle2 className="h-7 w-7 text-success" />
+        </div>
+        <h3 className="t-display-mid text-xl text-dark">
+          {isCorrection ? "Correction envoyée !" : "Livrable soumis avec succès !"}
+        </h3>
+        <p className="max-w-sm text-sm text-secondary">
+          {isCorrection
+            ? "Votre version corrigée a été envoyée à votre coach. Vous recevrez un feedback sous peu."
+            : "Votre livrable a été envoyé à votre coach pour révision. Vous serez notifié dès qu'il aura répondu."}
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setSubmitted(false);
+            router.refresh();
+          }}
+          className="mt-2 text-sm font-medium text-ochre hover:underline"
+        >
+          Retour aux missions
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -108,15 +153,33 @@ export function MissionSubmissionForm({
         value={contenu}
         maxLength={SUBMISSION_MAX_LENGTH}
         onChange={(event) => setContenu(event.target.value)}
-        placeholder="Collez le lien de votre livrable (Google Doc, Drive, page en ligne...) ou décrivez ce que vous avez produit."
-        className="w-full rounded-lg border border-dark/10 px-3 py-2 text-sm"
+        placeholder={
+          isCorrection
+            ? "Décrivez ici les corrections apportées ou collez le lien de votre version mise à jour."
+            : "Collez le lien de votre livrable (Google Doc, Drive, page en ligne...) ou décrivez ce que vous avez produit."
+        }
+        className="w-full rounded-[2px] border border-dark/10 bg-paper px-3 py-2.5 text-sm text-dark placeholder:text-secondary/40 focus:border-gold/60 focus:outline-none resize-none"
       />
-      {error && <p className="text-sm text-error">{error}</p>}
-      <div>
-        <Button type="submit" disabled={submitting}>
-          {submitting ? "Envoi en cours..." : "Soumettre à mon coach"}
-        </Button>
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-secondary/50">
+          {contenu.length} / {SUBMISSION_MAX_LENGTH} caractères
+        </span>
+        {error && <span className="text-xs text-error">{error}</span>}
       </div>
+      {error && <p className="text-sm text-error">{error}</p>}
+      <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
+        {submitting ? (
+          <span className="flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Envoi en cours...
+          </span>
+        ) : (
+          <span className="flex items-center gap-2">
+            <Send className="h-4 w-4" />
+            {isCorrection ? "Renvoyer ma correction" : "Soumettre à mon coach"}
+          </span>
+        )}
+      </Button>
     </form>
   );
 }

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ProfileRole } from "@/lib/profile/role";
 import { SigneVirtuose } from "@/components/marketing/LogoVirtuose";
+import { useEffect, useState } from "react";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 interface NavLinkItem {
   href: string;
@@ -60,25 +62,28 @@ export function BottomNav({ role }: { role: ProfileRole }) {
   ];
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-paper/20 bg-ink/95 backdrop-blur-lg sm:hidden">
-      {items.map((item) => {
-        const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`flex flex-1 flex-col items-center gap-1 py-3 transition-colors ${
-              isActive ? "text-gold" : "text-steel/60"
-            }`}
-          >
-            <NavIcon name={item.icon} />
-            <span className="text-[0.625rem] font-medium">{item.label}</span>
-            {isActive && (
-              <span aria-hidden="true" className="mt-0.5 h-0.5 w-6 rounded-full bg-gold" />
-            )}
-          </Link>
-        );
-      })}
+    <nav className="fixed inset-x-0 bottom-0 z-40 flex items-center border-t border-paper/20 bg-ink/95 backdrop-blur-lg sm:hidden">
+      <div className="flex flex-1 items-stretch">
+        {items.map((item) => {
+          const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex flex-1 flex-col items-center justify-center gap-1 py-3 transition-colors ${
+                isActive ? "text-gold" : "text-steel/60"
+              }`}
+            >
+              <NavIcon name={item.icon} />
+              <span className="text-[0.625rem] font-medium">{item.label}</span>
+              {isActive && (
+                <span aria-hidden="true" className="mt-0.5 h-0.5 w-6 rounded-full bg-gold" />
+              )}
+            </Link>
+          );
+        })}
+      </div>
+      <NotificationBell />
     </nav>
   );
 }
