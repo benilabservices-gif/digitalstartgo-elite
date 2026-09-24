@@ -31,9 +31,8 @@ export default function DiagnosticPage() {
   useEffect(() => {
     async function checkExisting() {
       const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
+      setChecking(false);
       if (!user) return;
 
       const { data } = await supabase

@@ -67,29 +67,29 @@ export default async function StagePage({ params }: { params: { slug: string } }
   const stage = stageData as unknown as StageRow;
   const stageNum = stage.number;
 
-  // Check if previous stage is validated (lock logic)
-  const { data: prevStages } = await supabase
+  // Check if ALL previous stages are fully validated (lock logic)
+  const { data: prevStagesData } = await supabase
     .from("stages")
     .select("id, missions(id)")
     .lt("number", stageNum)
-    .order("number", { ascending: false })
-    .limit(1);
+    .order("number", { ascending: true });
 
-  const prevStage = (prevStages ?? [])[0] as { missions: { id: string }[] } | null;
+  const prevStages = (prevStagesData ?? []) as { id: string; missions: { id: string }[] }[];
   let isLocked = false;
 
-  if (prevStage && prevStage.missions.length > 0) {
+  if (prevStages.length > 0) {
+    // Get all progress for all previous stages at once
+    const allPrevMissionIds = prevStages.flatMap((s) => s.missions.map((m) => m.id));
     const { data: prevProgress } = await supabase
       .from("mission_progress")
-      .select("status")
-      .in(
-        "mission_id",
-        prevStage.missions.map((m) => m.id)
-      );
-    const allPrevValidated =
-      prevStage.missions.length > 0 &&
-      (prevProgress ?? []).every((p) => p.status === "valide");
-    isLocked = !allPrevValidated;
+      .select("mission_id, status")
+      .in("mission_id", allPrevMissionIds);
+
+    const prevProgressMap = new Map<string, string>();
+    (prevProgress ?? []).forEach((p: any) => prevProgressMap.set(p.mission_id, p.status));
+
+    // Stage is locked if ANY previous mission is not validated
+    isLocked = !allPrevMissionIds.every((mid) => prevProgressMap.get(mid) === "valide");
   }
 
   const { data: progressRows } = await supabase
