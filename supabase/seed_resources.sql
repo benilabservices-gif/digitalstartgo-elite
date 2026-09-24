@@ -1,63 +1,4 @@
-insert into resources (stage_id, slug, title, description, type, content_blocks, order_index)
-select id, 'guide-diagnostic-funnel', 'Comprendre et lire votre Funnel Score',
-  'Ce qu''il faut regarder avant de changer quoi que ce soit dans votre système de vente.',
-  'guide',
-  '[
-    {"type": "paragraph", "text": "Avant de changer votre offre, votre site ou vos publicités, il faut savoir où se situe réellement la fuite dans votre système de vente. La plupart des entrepreneurs corrigent le mauvais problème parce qu''ils n''ont jamais mesuré les quatre zones qui déterminent leurs ventes."},
-    {"type": "heading", "text": "Les 4 zones à auditer"},
-    {"type": "list", "items": [
-      "Trafic — Est-ce qu''assez de personnes découvrent votre offre chaque semaine ?",
-      "Conversion — Parmi les visiteurs, combien deviennent des prospects (email, DM, appel) ?",
-      "Offre — Votre proposition est-elle assez claire et désirable pour déclencher une décision d''achat ?",
-      "Fidélisation — Vos clients reviennent-ils, ou chaque vente part-elle de zéro ?"
-    ]},
-    {"type": "heading", "text": "Comment lire votre Funnel Score"},
-    {"type": "paragraph", "text": "Le score n''est pas une note de qualité générale : c''est un indicateur de la zone la plus faible parmi les quatre. Un score bas signifie qu''une zone tire l''ensemble vers le bas — ce n''est presque jamais les quatre en même temps."},
-    {"type": "heading", "text": "Vos 3 priorités"},
-    {"type": "paragraph", "text": "Une fois le diagnostic fait, ne travaillez que sur les 3 priorités qu''il vous donne, dans l''ordre. Ajouter une cinquième action en parallèle dilue l''effort et retarde les résultats mesurables."}
-  ]'::jsonb,
-  1
-from stages where number = 1;
-
-insert into resources (stage_id, slug, title, description, type, content_blocks, order_index)
-select id, 'guide-offre-irresistible', 'Construire une offre irrésistible',
-  'La méthode pour transformer votre expertise en offre claire, désirable et vendable.',
-  'guide',
-  '[
-    {"type": "paragraph", "text": "Une offre irrésistible n''est pas la plus complète ni la moins chère : c''est celle dont la transformation promise est immédiatement comprise et désirée par la bonne personne."},
-    {"type": "heading", "text": "Les 4 piliers d''une offre qui se vend"},
-    {"type": "list", "items": [
-      "Promesse — un résultat précis, pas une méthode (« doublez vos rendez-vous en 30 jours », pas « accompagnement marketing »)",
-      "Transformation — l''état avant/après doit être visible et mesurable pour le client",
-      "Preuve — un exemple concret, un chiffre, un témoignage qui rend la promesse crédible",
-      "Prix — positionné par rapport à la valeur du résultat, pas par rapport à votre temps passé"
-    ]},
-    {"type": "heading", "text": "Erreur la plus fréquente"},
-    {"type": "paragraph", "text": "Décrire ce que vous faites (« je fais du coaching », « je propose un accompagnement ») au lieu de décrire ce que le client obtient. Réécrivez votre offre en commençant par le résultat, jamais par la méthode."}
-  ]'::jsonb,
-  1
-from stages where number = 2;
-
-insert into resources (stage_id, slug, title, description, type, content_blocks, order_index)
-select id, 'guide-cible-positionnement', 'Clarifier qui vous servez',
-  'Définir précisément votre client idéal et le message qui lui parle.',
-  'guide',
-  '[
-    {"type": "paragraph", "text": "Un message qui s''adresse à tout le monde ne convainc personne. Le positionnement commence par une décision inconfortable : accepter de ne pas convenir à tout le monde."},
-    {"type": "heading", "text": "La question qui structure tout"},
-    {"type": "paragraph", "text": "Qui je sers, et surtout qui je ne sers pas ? Listez 3 profils que vous refuseriez comme clients, même s''ils payaient. Ce qui reste après exclusion, c''est votre cible réelle."},
-    {"type": "heading", "text": "Votre message de positionnement en une phrase"},
-    {"type": "paragraph", "text": "J''aide [cible précise] à [résultat précis] sans [objection ou friction principale]. Testez cette phrase à voix haute : si elle ne se dit pas naturellement en une respiration, elle est encore trop vague."},
-    {"type": "heading", "text": "Vérifier le positionnement"},
-    {"type": "list", "items": [
-      "Un inconnu du secteur comprend-il en 5 secondes à qui vous vous adressez ?",
-      "Un client idéal se reconnaît-il immédiatement dans la description ?",
-      "Le message exclut-il clairement ceux qui ne sont pas concernés ?"
-    ]}
-  ]'::jsonb,
-  1
-from stages where number = 3;
-
+-- Guide étape 4 : Lead Magnet
 insert into resources (stage_id, slug, title, description, type, content_blocks, order_index)
 select id, 'guide-lead-magnet', 'Créer un lead magnet qui capture de vrais prospects',
   'Les critères d''une ressource gratuite qui génère des contacts qualifiés, pas juste des téléchargements.',
@@ -84,6 +25,7 @@ select id, 'guide-lead-magnet', 'Créer un lead magnet qui capture de vrais pros
   1
 from stages where number = 4;
 
+-- Guide étape 5 : Acquisition
 insert into resources (stage_id, slug, title, description, type, content_blocks, order_index)
 select id, 'guide-premier-canal-acquisition', 'Lancer un canal d''acquisition qui tient dans la durée',
   'Pourquoi choisir un seul canal au départ, et comment le rendre régulier.',
@@ -104,6 +46,7 @@ select id, 'guide-premier-canal-acquisition', 'Lancer un canal d''acquisition qu
   1
 from stages where number = 5;
 
+-- Guide étape 6 : Funnel (Page de vente)
 insert into resources (stage_id, slug, title, description, type, content_blocks, order_index)
 select id, 'guide-page-de-vente', 'Structurer une page de vente qui convertit',
   'Les sections indispensables, dans l''ordre, pour transformer un visiteur en client.',
@@ -126,6 +69,7 @@ select id, 'guide-page-de-vente', 'Structurer une page de vente qui convertit',
   1
 from stages where number = 6;
 
+-- Guide étape 7 : Conversion & Relance
 insert into resources (stage_id, slug, title, description, type, content_blocks, order_index)
 select id, 'guide-sequence-relance', 'Mettre en place une relance qui convertit sans forcer',
   'Une séquence de 3 messages pour récupérer les prospects qui n''ont pas encore acheté.',
@@ -144,6 +88,7 @@ select id, 'guide-sequence-relance', 'Mettre en place une relance qui convertit 
   1
 from stages where number = 7;
 
+-- Guide étape 8 : Mesure & Optimisation
 insert into resources (stage_id, slug, title, description, type, content_blocks, order_index)
 select id, 'guide-suivi-metriques-cles', 'Suivre les métriques qui comptent vraiment',
   'Le rituel hebdomadaire pour piloter votre système de vente au lieu de le subir.',

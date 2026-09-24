@@ -13,7 +13,8 @@ import {
   toMissionStatus,
   type SubmissionStatus,
 } from "@/lib/missions/status";
-import { Clock, FileText, History, CheckCircle2, AlertCircle } from "lucide-react";
+import { Clock, FileText, History, CheckCircle2, AlertCircle, BookOpen, ArrowRight } from "lucide-react";
+import type { ResourceBlock } from "@/lib/resources/types";
 
 interface MissionRow {
   id: string;
@@ -31,6 +32,14 @@ interface SubmissionRow {
   feedback_coach: string | null;
   created_at: string;
   updated_at: string;
+}
+
+interface ResourceRow {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  content_blocks: ResourceBlock[] | null;
 }
 
 const SUBMISSION_TONE: Record<SubmissionStatus, "default" | "success" | "warning" | "error"> = {
@@ -84,6 +93,26 @@ export default async function MissionPage({ params }: { params: { id: string } }
   const lastSubmission = submissions[0] ?? null;
   const blockedReason = submissionBlockedReason(status);
 
+  // Fetch resources for this mission's stage
+  const { data: resources } = await supabase
+    .from("resources")
+    .select("id, slug, title, description, content_blocks")
+    .eq("stage_id", (mission as any).stages?.number ? null : null)
+    .is("stage_id", null)
+    .limit(3);
+
+  // Also fetch resources tied to the stage via missions → stages join
+  const stageNumber = (mission as any).stages?.number;
+  const { data: stageResources } = stageNumber
+    ? await supabase
+        .from("resources")
+        .select("id, slug, title, description, content_blocks")
+        .order("order_index")
+        .limit(5)
+    : { data: [] };
+
+  const allResources = [...(resources ?? []), ...(stageResources ?? [])] as unknown as ResourceRow[];
+
   // Status icon
   const statusIcon = {
     a_faire: <AlertCircle className="h-4 w-4 text-secondary" />,
@@ -121,17 +150,56 @@ export default async function MissionPage({ params }: { params: { id: string } }
         </div>
       </div>
 
-      {/* Objectif */}
-      <PremiumCard title="Objectif de la mission" className="mb-6">
-        <p className="text-[1.0625rem] leading-relaxed text-dark">{missionRow.objective}</p>
-      </PremiumCard>
+      {/* Objectif + Guide d'aide */}
+      <div className="grid gap-4 sm:grid-cols-2 mb-6">
+        <PremiumCard title="Objectif de la mission">
+          <p className="text-[1.0625rem] leading-relaxed text-dark">{missionRow.objective}</p>
+        </PremiumCard>
 
-      {/* Ressources */}
-      <PremiumCard title="Ressources" className="mb-6" subtitle="Des guides pratiques vous attendent.">
-        <p className="text-sm text-secondary">
-          Ressources bientôt disponibles. En attendant, appuyez-vous sur l&apos;objectif ci-dessus et sur les retours de votre coach.
-        </p>
-      </PremiumCard>
+        {/* Guide pratique de l'étape */}
+        {allResources.length > 0 ? (
+          <PremiumCard
+            title="Guide pratique"
+            subtitle={`${allResources.length} ressource(s) pour vous aider`}
+            glow
+          >
+            <div className="space-y-3">
+              {allResources.slice(0, 2).map((resource) => (
+                <Link
+                  key={resource.id}
+                  href={`/ressources/${resource.slug}`}
+                  className="group flex items-start gap-3 rounded-[2px] border border-dark/8 p-3 transition-colors hover:border-ochre/30 hover:bg-paper/50"
+                >
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[2px] bg-gold/15">
+                    <BookOpen className="h-4 w-4 text-ochre" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-dark group-hover:text-ochre transition-colors truncate">
+                      {resource.title}
+                    </p>
+                    <p className="mt-0.5 text-xs text-secondary line-clamp-2">{resource.description}</p>
+                  </div>
+                  <ArrowRight className="mt-1 h-4 w-4 text-secondary/50 shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:text-ochre" />
+                </Link>
+              ))}
+              {allResources.length > 2 && (
+                <Link
+                  href="/ressources"
+                  className="block text-xs font-medium text-ochre hover:underline text-center pt-1"
+                >
+                  Voir toutes les ressources →
+                </Link>
+              )}
+            </div>
+          </PremiumCard>
+        ) : (
+          <PremiumCard title="Guide pratique">
+            <p className="text-sm text-secondary">
+              Les guides pratiques seront ajoutés prochainement. En attendant, consultez la section Ressources du menu.
+            </p>
+          </PremiumCard>
+        )}
+      </div>
 
       {/* Feedback coach */}
       {lastSubmission?.feedback_coach && (
@@ -157,6 +225,7 @@ export default async function MissionPage({ params }: { params: { id: string } }
             missionId={missionRow.id}
             missionProgressId={progress?.id ?? null}
             isCorrection={status === "a_corriger"}
+            missionTitle={missionRow.title}
           />
         ) : (
           <div className="flex items-center gap-2 text-sm text-secondary">
@@ -175,7 +244,6 @@ export default async function MissionPage({ params }: { params: { id: string } }
                 key={submission.id}
                 className={`relative pl-6 ${index < submissions.length - 1 ? "pb-4 border-b border-dark/6" : ""}`}
               >
-                {/* Timeline dot */}
                 <span
                   className={`absolute left-0 top-1.5 h-3 w-3 rounded-full border-2 ${
                     submission.statut === "valide"
