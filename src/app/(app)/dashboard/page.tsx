@@ -9,7 +9,7 @@ import {
   toMissionStatus,
 } from "@/lib/missions/status";
 import { deriveCohortStatus } from "@/lib/cohorts/status";
-import { ArrowRight, Play, Sparkles } from "lucide-react";
+import { ArrowRight, Play, Sparkles, CheckCircle2, Trophy } from "lucide-react";
 
 const COHORT_STATUS_LABELS = {
   a_venir: "À venir",
@@ -66,6 +66,15 @@ export default async function DashboardPage() {
 
   if (!profile?.onboarding_completed) redirect("/onboarding");
 
+  // Get latest diagnostic result
+  const { data: diagnostic } = await supabase
+    .from("diagnostics")
+    .select("score, priorities")
+    .eq("profile_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   const { data: stages } = await supabase
     .from("stages")
     .select("id, number, slug, title, missions(id, number, title)")
@@ -76,30 +85,24 @@ export default async function DashboardPage() {
     .select("mission_id, status")
     .eq("profile_id", user.id);
 
-  const progressByMission = new Map((progressRows ?? []).map((row) => [row.mission_id, row.status]));
+  const progressByMission = new Map((progressRows ?? []).map((row: any) => [row.mission_id, row.status]));
 
-  const allMissions = (stages ?? []).flatMap((stage) => stage.missions);
+  const allMissions = (stages ?? []).flatMap((stage: any) => stage.missions);
   const validatedCount = allMissions.filter(
-    (mission) => progressByMission.get(mission.id) === "valide"
+    (mission: any) => progressByMission.get(mission.id) === "valide"
   ).length;
   const overallProgress = allMissions.length > 0 ? (validatedCount / allMissions.length) * 100 : 0;
 
   // Find current (first non-validated) mission
-  const currentMission = allMissions.find((m) => progressByMission.get(m.id) !== "valide");
+  const currentMission = allMissions.find((m: any) => progressByMission.get(m.id) !== "valide");
   const currentStatus = currentMission
     ? toMissionStatus(progressByMission.get(currentMission.id))
     : null;
 
   // Find which stage the current mission belongs to
-  const currentStage = (stages ?? []).find((stage) =>
-    stage.missions.some((m) => m.id === currentMission?.id)
+  const currentStage = (stages ?? []).find((stage: any) =>
+    stage.missions.some((m: any) => m.id === currentMission?.id)
   );
-
-  // Find next unlocked stage
-  const nextStageNum = currentMission
-    ? ((currentStage?.number ?? 1) + 1)
-    : 1;
-  const nextStage = (stages ?? []).find((s) => s.number === nextStageNum);
 
   // Check notifications count
   const { data: notifRows } = await supabase
@@ -110,12 +113,17 @@ export default async function DashboardPage() {
   const unreadCount = (notifRows ?? []).length;
 
   // Compute stage-level stats
-  const stageStats = (stages ?? []).map((stage) => {
+  const stageStats = (stages ?? []).map((stage: any) => {
     const stageMissions = stage.missions;
-    const completed = stageMissions.filter((m) => progressByMission.get(m.id) === "valide").length;
+    const completed = stageMissions.filter((m: any) => progressByMission.get(m.id) === "valide").length;
     const total = stageMissions.length;
     return { number: stage.number, title: stage.title, completed, total };
   });
+
+  // Determine what to show based on diagnostic completion
+  const hasDiagnostic = !!diagnostic;
+  const diagnosticScore = diagnostic?.score;
+  const diagnosticPriorities = (diagnostic?.priorities ?? []) as string[];
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10 pb-24 sm:pb-10">
@@ -136,33 +144,47 @@ export default async function DashboardPage() {
         <p className="mt-2 text-[1.0625rem] text-secondary">
           {currentMission
             ? `Vous êtes à l&apos;étape ${String(currentStage?.number ?? "?").padStart(2, "0")} — ${currentStage?.title ?? ""}. Continuez là où vous en êtes.`
-            : "Parfait ! Toutes vos étapes sont terminées. Vous avez construit votre système de vente."}
+            : "Parfait ! Toutes vos étapes sont terminées. Votre système de vente est en place."}
         </p>
       </div>
 
-      {/* Stats grid */}
-      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatBadge label="Funnel Score" value={`${validatedCount}/${allMissions.length}`} sub="missions validées" tone="gold" />
-        <StatBadge label="Étape actuelle" value={currentStage ? String(currentStage.number).padStart(2, "0") : "—"} sub={currentStage?.title ?? ""} />
-        <StatBadge label="Progression" value={`${Math.round(overallProgress)}%`} sub="du parcours" />
-        <StatBadge
-          label="Dernier statut"
-          value={currentStatus ? MISSION_STATUS_LABELS[currentStatus].split(" ")[0] : "—"}
-          sub={currentStatus ? MISSION_STATUS_LABELS[currentStatus] : "En attente"}
-          tone={currentStatus === "valide" ? "success" : currentStatus === "a_corriger" ? "error" : "default"}
-        />
-      </div>
+      {/* Diagnostic result banner (if completed) */}
+      {hasDiagnostic && (
+        <PremiumCard className="mb-6 border-l-[3px] border-l-gold" glow>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-ink">
+                <span className="t-chiffre text-xl text-gold">{diagnosticScore}</span>
+              </div>
+              <div>
+                <p className="t-meta text-xs uppercase tracking-widest text-ochre">Votre Funnel Score</p>
+                <p className="text-sm text-secondary mt-0.5">
+                  {diagnosticScore >= 70
+                    ? "Votre système est solide. Optimisez les détails."
+                    : diagnosticScore >= 40
+                    ? "Des bases existent. Renforcez les zones faibles."
+                    : "Votre système a besoin de fondations solides. Commencez par l&apos;étape 1."}
+                </p>
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="t-meta mb-2 text-xs uppercase tracking-widest text-steel/60">Vos 3 priorités</p>
+              <ol className="space-y-1">
+                {diagnosticPriorities.slice(0, 3).map((p, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-dark">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gold/20 text-[0.625rem] font-bold text-ochre">
+                      {i + 1}
+                    </span>
+                    <span className="truncate">{p}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </div>
+        </PremiumCard>
+      )}
 
-      {/* Progression globale */}
-      <PremiumCard className="mb-6" glow>
-        <StepIndicator
-          current={validatedCount}
-          total={allMissions.length}
-          stages={(stages ?? []).map((s) => ({ number: s.number, title: s.title }))}
-        />
-      </PremiumCard>
-
-      {/* CTA principal — Mission actuelle */}
+      {/* Call to action — directly to first actionable mission */}
       {currentMission && currentStatus && (
         <PremiumCard className="mb-6 border-l-[3px] border-l-gold" glow>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -174,43 +196,103 @@ export default async function DashboardPage() {
                 <Badge tone={MISSION_STATUS_TONE[currentStatus]}>{MISSION_STATUS_LABELS[currentStatus]}</Badge>
               </div>
               <h2 className="t-display-mid mt-2 text-xl text-dark">{currentMission.title}</h2>
-              <p className="mt-1 text-sm text-secondary">{currentStage?.title ?? ""}</p>
+              <p className="mt-1 text-sm text-secondary">
+                {currentStage?.title ?? ""}
+              </p>
+              <p className="mt-2 text-xs text-steel/70">
+                {currentStatus === "a_faire" && "Cliquez pour commencer cette mission."}
+                {currentStatus === "en_cours" && "Reprenez là où vous vous êtes arrêté."}
+                {currentStatus === "soumis" && "En attente du feedback de votre coach."}
+                {currentStatus === "a_corriger" && "Votre coach a demandé des modifications. Mettez à jour votre livrable."}
+              </p>
             </div>
             <Link
               href={`/missions/${currentMission.id}`}
-              className="group flex shrink-0 items-center gap-2 rounded-[2px] bg-gold px-5 py-3 text-sm font-semibold text-ink transition-all hover:bg-amber hover:shadow-[0_0_24px_rgba(240,185,40,0.4)]"
+              className="group flex shrink-0 items-center gap-2 rounded-[2px] bg-gold px-6 py-3.5 text-sm font-semibold text-ink transition-all hover:bg-amber hover:shadow-[0_0_24px_rgba(240,185,40,0.4)]"
             >
-              <Play className="h-4 w-4" />
-              Continuer
+              {currentStatus === "a_faire" || currentStatus === "en_cours" ? (
+                <>
+                  <Play className="h-4 w-4" />
+                  {currentStatus === "a_faire" ? "Commencer" : "Continuer"}
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4" />
+                  Voir mon livrable
+                </>
+              )}
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
           </div>
         </PremiumCard>
       )}
 
+      {/* Pas de mission actuelle — rediriger vers le parcours */}
+      {!currentMission && !hasDiagnostic && (
+        <PremiumCard className="mb-6 text-center border-l-[3px] border-l-gold" glow>
+          <Sparkles className="mx-auto mb-3 h-8 w-8 text-gold" />
+          <h2 className="t-display-mid text-xl text-dark">Votre parcours commence ici</h2>
+          <p className="mt-2 text-secondary max-w-md mx-auto">
+            Réalisez votre diagnostic pour obtenir votre Funnel Score et découvrir vos 3 priorités.
+          </p>
+          <Link
+            href="/diagnostic"
+            className="mt-5 inline-flex items-center gap-2 rounded-[2px] bg-gold px-6 py-3 text-sm font-semibold text-ink transition-all hover:bg-amber hover:shadow-[0_0_20px_rgba(240,185,40,0.3)]"
+          >
+            Faire mon diagnostic
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </PremiumCard>
+      )}
+
       {/* Tous terminé */}
-      {!currentMission && (
+      {!currentMission && hasDiagnostic && (
         <PremiumCard className="mb-6 text-center border-l-[3px] border-l-success" glow>
           <div className="flex flex-col items-center gap-2">
-            <svg className="h-12 w-12 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-success/15">
+              <Trophy className="h-7 w-7 text-success" />
+            </div>
             <h2 className="t-display-mid text-2xl text-dark">Parcours terminé !</h2>
-            <p className="text-secondary">
+            <p className="text-secondary max-w-md">
               Félicitations, vous avez complété les 8 étapes. Votre système de vente est en place.
             </p>
-            {nextStage && (
-              <Link
-                href={`/parcours/${nextStage.slug}`}
-                className="mt-4 flex items-center gap-2 rounded-[2px] border border-gold/30 bg-gold/5 px-4 py-2 text-sm font-medium text-ochre hover:bg-gold/10"
-              >
-                <Sparkles className="h-4 w-4" />
-                Consulter les ressources de l&apos;étape {String(nextStage.number).padStart(2, "0")}
-              </Link>
-            )}
+            <p className="mt-1 text-sm text-ochre font-medium">
+              Funnel Score : {diagnosticScore}/100
+            </p>
           </div>
         </PremiumCard>
       )}
+
+      {/* Stats grid */}
+      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatBadge
+          label="Funnel Score"
+          value={hasDiagnostic ? String(diagnosticScore) : "—"}
+          sub={hasDiagnostic ? "/100" : "Non fait"}
+          tone={hasDiagnostic ? (diagnosticScore! >= 70 ? "success" as const : diagnosticScore! >= 40 ? "gold" as const : "error" as const) : "default"}
+        />
+        <StatBadge
+          label="Étape actuelle"
+          value={currentStage ? String(currentStage.number).padStart(2, "0") : (hasDiagnostic ? "—" : "1er")}
+          sub={currentStage?.title ?? (hasDiagnostic ? "À venir" : "Diagnostic")}
+        />
+        <StatBadge label="Progression" value={`${Math.round(overallProgress)}%`} sub="du parcours" />
+        <StatBadge
+          label="Missions validées"
+          value={`${validatedCount}/${allMissions.length}`}
+          sub="missions complétées"
+          tone="gold"
+        />
+      </div>
+
+      {/* Progression globale */}
+      <PremiumCard className="mb-6" glow>
+        <StepIndicator
+          current={validatedCount}
+          total={allMissions.length}
+          stages={(stages ?? []).map((s: any) => ({ number: s.number, title: s.title }))}
+        />
+      </PremiumCard>
 
       {/* Coach card */}
       {profile.role === "coach" && (
@@ -243,7 +325,7 @@ export default async function DashboardPage() {
       {/* Progression par étape */}
       <PremiumCard className="mt-6" title="Progression par étape">
         <ol className="flex flex-col gap-2">
-          {stageStats.map((stage) => (
+          {stageStats.map((stage: any) => (
             <li key={stage.number} className="flex items-center justify-between gap-3 py-2">
               <div className="flex min-w-0 items-center gap-3">
                 <span className="t-chiffre w-8 shrink-0 text-[0.875rem] text-ochre">
