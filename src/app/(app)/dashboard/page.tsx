@@ -85,18 +85,17 @@ export default async function DashboardPage() {
     .select("mission_id, status")
     .eq("profile_id", user.id);
 
-  const progressByMission = new Map((progressRows ?? []).map((row: any) => [row.mission_id, row.status]));
-
-  const allMissions = (stages ?? []).flatMap((stage: any) => stage.missions);
-  const validatedCount = allMissions.filter(
-    (mission: any) => progressByMission.get(mission.id) === "valide"
-  ).length;
+  // Graceful fallback if tables don't exist yet
+  const stagesArray = (stages ?? []) as any[];
+  const progressMap = new Map((progressRows ?? []).map((row: any) => [row.mission_id, row.status]));
+  const allMissions = stagesArray.flatMap((stage: any) => stage?.missions ?? []);
+  const validatedCount = allMissions.filter((m: any) => progressMap.get(m?.id) === "valide").length;
   const overallProgress = allMissions.length > 0 ? (validatedCount / allMissions.length) * 100 : 0;
 
   // Find current (first non-validated) mission
-  const currentMission = allMissions.find((m: any) => progressByMission.get(m.id) !== "valide");
+  const currentMission = allMissions.find((m: any) => progressMap.get(m.id) !== "valide");
   const currentStatus = currentMission
-    ? toMissionStatus(progressByMission.get(currentMission.id))
+    ? toMissionStatus(progressMap.get(currentMission.id))
     : null;
 
   // Find which stage the current mission belongs to
@@ -115,7 +114,7 @@ export default async function DashboardPage() {
   // Compute stage-level stats
   const stageStats = (stages ?? []).map((stage: any) => {
     const stageMissions = stage.missions;
-    const completed = stageMissions.filter((m: any) => progressByMission.get(m.id) === "valide").length;
+    const completed = stageMissions.filter((m: any) => progressMap.get(m.id) === "valide").length;
     const total = stageMissions.length;
     return { number: stage.number, title: stage.title, completed, total };
   });
