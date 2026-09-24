@@ -18,6 +18,7 @@ const BASE_ITEMS: NavLinkItem[] = [
 ];
 
 const COACH_ITEM: NavLinkItem = { href: "/coach", label: "Revue", icon: "review" };
+const AI_COACH_ITEM: NavLinkItem = { href: "/coach-ai", label: "AI Coach", icon: "bot" };
 
 function NavIcon({ name }: { name: string }) {
   const icons: Record<string, JSX.Element> = {
@@ -41,13 +42,22 @@ function NavIcon({ name }: { name: string }) {
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
       </svg>
     ),
+    bot: (
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+      </svg>
+    ),
   };
   return icons[name] ?? null;
 }
 
 export function BottomNav({ role }: { role: ProfileRole }) {
   const pathname = usePathname();
-  const items = role === "coach" ? [...BASE_ITEMS, COACH_ITEM] : BASE_ITEMS;
+  const items = [
+    ...BASE_ITEMS,
+    ...(role === "coach" ? [COACH_ITEM] : []),
+    AI_COACH_ITEM,
+  ];
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-paper/20 bg-ink/95 backdrop-blur-lg sm:hidden">

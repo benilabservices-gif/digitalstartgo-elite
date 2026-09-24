@@ -20,8 +20,8 @@ describe("SidebarNav", () => {
 
   it("affiche les sections à venir comme non cliquables", () => {
     render(<SidebarNav role="participant" />);
-    expect(screen.getByText("Virtuose AI")).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Virtuose AI/ })).not.toBeInTheDocument();
+    expect(screen.getByText("Communauté")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Communauté/ })).not.toBeInTheDocument();
   });
 
   it("affiche Ressources comme lien actif, plus dans les sections à venir", () => {

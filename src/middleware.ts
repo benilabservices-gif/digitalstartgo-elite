@@ -10,6 +10,8 @@ const APP_ROUTES = [
   "/ressources",
   "/admin",
   "/abonnement",
+  "/parcours",
+  "/coach-ai",
 ];
 const AUTH_ROUTES = ["/login", "/signup"];
 
@@ -57,7 +59,9 @@ export async function middleware(request: NextRequest) {
     (pathname.startsWith("/diagnostic") ||
       pathname.startsWith("/dashboard") ||
       pathname.startsWith("/missions") ||
-      pathname.startsWith("/ressources"))
+      pathname.startsWith("/ressources") ||
+      pathname.startsWith("/parcours") ||
+      pathname.startsWith("/coach-ai"))
   ) {
     const { data: profile } = await supabase
       .from("profiles")
@@ -101,6 +105,8 @@ export const config = {
     "/ressources/:path*",
     "/admin/:path*",
     "/abonnement/:path*",
+    "/parcours/:path*",
+    "/coach-ai/:path*",
     "/login",
     "/signup",
   ],
