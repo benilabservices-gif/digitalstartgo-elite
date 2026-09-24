@@ -110,7 +110,6 @@ export const config = {
     "/coach/:path*",
     "/ressources/:path*",
     "/admin/:path*",
-    "/abonnement/:path*",
     "/parcours/:path*",
     "/coach-ai/:path*",
     "/login",
