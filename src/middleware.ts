@@ -49,10 +49,10 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isAppRoute = APP_ROUTES.some((route) => pathname.startsWith(route));
   const isAuthRoute = AUTH_ROUTES.some((route) => pathname.startsWith(route));
-  const isAbonnement = ABONNEMENT_ROUTES.some((route) => pathname.startsWith(route));
+  const isAbonnement = pathname.startsWith("/abonnement");
 
   // 1. Si pas connecté et que la route nécessite une auth → redirectToLogin
-  if (!user && isAppRoute) {
+  if (!user && isAppRoute && !isAbonnement) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
@@ -62,7 +62,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // 3. Routes protégées (auth + onboarding + abonnement)
-  if (user && isAppRoute) {
+  if (user && isAppRoute && !isAbonnement) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("onboarding_completed, role")
