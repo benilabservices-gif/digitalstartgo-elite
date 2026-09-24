@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+// Routes nécessitant une authentification + onboarding + abonnement actif
 const APP_ROUTES = [
   "/dashboard",
   "/onboarding",
@@ -9,11 +10,16 @@ const APP_ROUTES = [
   "/coach",
   "/ressources",
   "/admin",
-  "/abonnement",
   "/parcours",
   "/coach-ai",
 ];
+
+// Routes d'authentification — accessibles à tous (même sans session)
 const AUTH_ROUTES = ["/login", "/signup"];
+
+// Page d'abonnement — accessible publiquement pour que les visiteurs
+// puissent voir les tarifs avant de s'inscrire
+const ABONNEMENT_ROUTES = ["/abonnement"];
 
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next({ request: { headers: request.headers } });
@@ -43,40 +49,32 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isAppRoute = APP_ROUTES.some((route) => pathname.startsWith(route));
   const isAuthRoute = AUTH_ROUTES.some((route) => pathname.startsWith(route));
+  const isAbonnement = ABONNEMENT_ROUTES.some((route) => pathname.startsWith(route));
 
+  // 1. Si pas connecté et que la route nécessite une auth → redirectToLogin
   if (!user && isAppRoute) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
+  // 2. Si connecté et que la route est une route d'auth → rediriger vers dashboard
   if (user && isAuthRoute) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  // /coach est volontairement hors de ce contrôle : un compte coach n'a pas
-  // forcément d'onboarding participant complété.
-  if (
-    user &&
-    (pathname.startsWith("/diagnostic") ||
-      pathname.startsWith("/dashboard") ||
-      pathname.startsWith("/missions") ||
-      pathname.startsWith("/ressources") ||
-      pathname.startsWith("/parcours") ||
-      pathname.startsWith("/coach-ai"))
-  ) {
+  // 3. Routes protégées (auth + onboarding + abonnement)
+  if (user && isAppRoute) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("onboarding_completed, role")
       .eq("id", user.id)
       .maybeSingle();
 
+    // Onboarding requis
     if (!profile || profile.onboarding_completed !== true) {
       return NextResponse.redirect(new URL("/onboarding", request.url));
     }
 
-    // /abonnement reste volontairement hors de ce contrôle (pas ajouté à la
-    // liste ci-dessus) : c'est la page où corriger l'absence d'abonnement,
-    // elle ne doit pas se rediriger elle-même. Les coachs et admins ne sont
-    // jamais des clients payants, seuls les participants sont concernés.
+    // Abonnement requis uniquement pour les participants
     if (profile.role === "participant") {
       const { data: activeSubscription } = await supabase
         .from("subscriptions")
@@ -87,9 +85,17 @@ export async function middleware(request: NextRequest) {
         .maybeSingle();
 
       if (!activeSubscription) {
+        // Rediriger vers la page d'abonnement (accessible publiquement)
         return NextResponse.redirect(new URL("/abonnement", request.url));
       }
     }
+  }
+
+  // 4. Page abonnement accessible même sans auth (pour les visiteurs)
+  //    Mais si déjà connecté → pas besoin de protéger
+  if (isAbonnement && !user) {
+    // Retourner la page normalement (pas de redirection)
+    return response;
   }
 
   return response;
