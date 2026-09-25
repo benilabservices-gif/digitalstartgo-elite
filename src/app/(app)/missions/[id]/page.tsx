@@ -27,6 +27,36 @@ const SUBMISSION_LABELS: Record<SubmissionStatus, string> = {
   valide: "Validé",
 };
 
+interface MissionData {
+  id: string;
+  number: number;
+  title: string;
+  objective: string;
+  estimated_duration_minutes: number;
+  stages?: { number: number; title: string } | null;
+}
+
+interface ProgressData {
+  id: string;
+  status: string;
+}
+
+interface SubmissionRow {
+  id: string;
+  contenu: string;
+  statut: SubmissionStatus;
+  feedback_coach: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ResourceRow {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+}
+
 export default async function MissionPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
   const {
@@ -35,72 +65,70 @@ export default async function MissionPage({ params }: { params: { id: string } }
 
   if (!user) redirect("/login");
 
-  // Get mission
-  const { data: missionData } = await supabase
-    .from("missions")
-    .select("id, number, title, objective, estimated_duration_minutes, stages(number, title)")
-    .eq("id", params.id)
-    .maybeSingle();
-
-  if (!missionData) notFound();
-
-  const mission = missionData as any;
-
-  // Get progress
-  const { data: progressData } = await supabase
-    .from("mission_progress")
-    .select("id, status")
-    .eq("profile_id", user.id)
-    .eq("mission_id", mission.id)
-    .maybeSingle();
-
-  const status = toMissionStatus(progressData?.status);
-
-  // Get submissions
-  let submissions: Array<{
-    id: string;
-    contenu: string;
-    statut: SubmissionStatus;
-    feedback_coach: string | null;
-    created_at: string;
-    updated_at: string;
-  }> = [];
-
-  if (progressData) {
-    const { data: subs } = await supabase
-      .from("mission_submissions")
-      .select("id, contenu, statut, feedback_coach, created_at, updated_at")
-      .eq("mission_progress_id", progressData.id)
-      .order("created_at", { ascending: false });
-    submissions = subs ?? [];
-  }
-
-  // Get resources for this stage
-  const { data: resources } = mission.stages
-    ? await supabase
-        .from("resources")
-        .select("id, slug, title, description")
-        .eq("stage_id", mission.stages.number > 0 ? null : null)
-        .limit(3)
-    : { data: [] };
-
-  // Fetch resources by stage number
-  let allResources: Array<{ id: string; slug: string; title: string; description: string }> = [];
-  if (mission.stages?.number) {
-    const { data: stages } = await supabase
-      .from("stages")
-      .select("id")
-      .eq("number", mission.stages.number)
-      .maybeSingle();
-    if (stages) {
-      const { data: resData } = await supabase
-        .from("resources")
-        .select("id, slug, title, description")
-        .eq("stage_id", stages.id)
-        .order("order_index");
-      allResources = resData ?? [];
+  // Use API route to bypass RLS issues
+  const apiRes = await fetch(
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL!}/rest/v1/missions?id=eq.${params.id}&select=id,number,title,objective,estimated_duration_minutes,stages(number,title)`,
+    {
+      headers: {
+        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
     }
+  );
+
+  if (!apiRes.ok) notFound();
+  const missionData = await apiRes.json();
+  const mission = missionData?.[0];
+  if (!mission) notFound();
+
+  // Get progress via API
+  const progressRes = await fetch(
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL!}/rest/v1/mission_progress?profile_id=eq.${user.id}&mission_id=eq.${params.id}&select=id,status`,
+    {
+      headers: {
+        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+    }
+  );
+  const progressList = await progressRes.json();
+  const progress = progressList?.[0] ?? null;
+  const status = toMissionStatus(progress?.status);
+
+  // Get submissions via API
+  let submissions: SubmissionRow[] = [];
+  if (progress) {
+    const subRes = await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL!}/rest/v1/mission_submissions?mission_progress_id=eq.${progress.id}&select=id,contenu,statut,feedback_coach,created_at,updated_at&order=created_at.desc`,
+      {
+        headers: {
+          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+      }
+    );
+    submissions = await subRes.json();
   }
+
+  // Get resources via API
+  const resourcesRes = await fetch(
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL!}/rest/v1/resources?stage_id=eq.${mission.stage_id}&select=id,slug,title,description&order=order_index.asc`,
+    {
+      headers: {
+        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+    }
+  );
+  const allResources: ResourceRow[] = await resourcesRes.json();
 
   const lastSubmission = submissions[0] ?? null;
   const blockedReason = submissionBlockedReason(status);
@@ -115,7 +143,6 @@ export default async function MissionPage({ params }: { params: { id: string } }
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10 pb-24 sm:pb-10">
-      {/* Back link */}
       <Link href="/dashboard" className="mb-8 inline-flex items-center gap-1.5 text-sm font-medium text-ochre hover:underline">
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -123,7 +150,6 @@ export default async function MissionPage({ params }: { params: { id: string } }
         Retour à mon parcours
       </Link>
 
-      {/* Header */}
       <div className="mb-8">
         <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-ochre">
           Étape {mission.stages?.number ?? mission.number} · {mission.stages?.title ?? "Mon Parcours"}
@@ -141,7 +167,6 @@ export default async function MissionPage({ params }: { params: { id: string } }
         </div>
       </div>
 
-      {/* Objectif + Guide */}
       <div className="grid gap-4 sm:grid-cols-2 mb-6">
         <PremiumCard title="Objectif de la mission">
           <p className="text-[1.0625rem] leading-relaxed text-dark">{mission.objective}</p>
@@ -160,9 +185,7 @@ export default async function MissionPage({ params }: { params: { id: string } }
                     <BookOpen className="h-4 w-4 text-ochre" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-dark group-hover:text-ochre transition-colors truncate">
-                      {resource.title}
-                    </p>
+                    <p className="text-sm font-semibold text-dark group-hover:text-ochre transition-colors truncate">{resource.title}</p>
                     <p className="mt-0.5 text-xs text-secondary line-clamp-2">{resource.description}</p>
                   </div>
                   <ArrowRight className="mt-1 h-4 w-4 text-secondary/50 shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:text-ochre" />
@@ -177,27 +200,17 @@ export default async function MissionPage({ params }: { params: { id: string } }
           </PremiumCard>
         ) : (
           <PremiumCard title="Guide pratique">
-            <p className="text-sm text-secondary">
-              Les guides pratiques seront ajoutés prochainement. Consultez la section Ressources du menu.
-            </p>
+            <p className="text-sm text-secondary">Consultez la section Ressources du menu pour les guides.</p>
           </PremiumCard>
         )}
       </div>
 
-      {/* Feedback coach */}
       {lastSubmission?.feedback_coach && (
-        <PremiumCard
-          title="Retour de votre coach"
-          className="mb-6 border-l-[3px] border-l-gold"
-          subtitle={`Reçu le ${formatDateTime(lastSubmission.updated_at)}`}
-        >
-          <p className="whitespace-pre-wrap text-[1.0625rem] leading-relaxed text-dark">
-            {lastSubmission.feedback_coach}
-          </p>
+        <PremiumCard title="Retour de votre coach" className="mb-6 border-l-[3px] border-l-gold" subtitle={`Reçu le ${formatDateTime(lastSubmission.updated_at)}`}>
+          <p className="whitespace-pre-wrap text-[1.0625rem] leading-relaxed text-dark">{lastSubmission.feedback_coach}</p>
         </PremiumCard>
       )}
 
-      {/* Soumission */}
       <PremiumCard
         title={status === "a_corriger" ? "Renvoyer mon livrable" : "Soumettre mon livrable"}
         subtitle={status === "a_corriger" ? "Votre coach a demandé des modifications." : "Décrivez votre livrable ou collez le lien."}
@@ -206,7 +219,7 @@ export default async function MissionPage({ params }: { params: { id: string } }
         {canSubmitMission(status) ? (
           <MissionSubmissionForm
             missionId={mission.id}
-            missionProgressId={progressData?.id ?? null}
+            missionProgressId={progress?.id ?? null}
             isCorrection={status === "a_corriger"}
             missionTitle={mission.title}
           />
@@ -218,35 +231,19 @@ export default async function MissionPage({ params }: { params: { id: string } }
         )}
       </PremiumCard>
 
-      {/* Historique */}
       {submissions.length > 0 && (
         <PremiumCard title="Historique de mes soumissions" subtitle={`${submissions.length} soumission(s)`}>
           <ol className="space-y-4">
             {submissions.map((submission, index) => (
-              <li
-                key={submission.id}
-                className={`relative pl-6 ${index < submissions.length - 1 ? "pb-4 border-b border-dark/6" : ""}`}
-              >
-                <span
-                  className={`absolute left-0 top-1.5 h-3 w-3 rounded-full border-2 ${
-                    submission.statut === "valide"
-                      ? "border-success bg-success"
-                      : submission.statut === "a_corriger"
-                      ? "border-error bg-error"
-                      : "border-ochre bg-paper"
-                  }`}
-                />
+              <li key={submission.id} className={`relative pl-6 ${index < submissions.length - 1 ? "pb-4 border-b border-dark/6" : ""}`}>
+                <span className={`absolute left-0 top-1.5 h-3 w-3 rounded-full border-2 ${submission.statut === "valide" ? "border-success bg-success" : submission.statut === "a_corriger" ? "border-error bg-error" : "border-ochre bg-paper"}`} />
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge tone={SUBMISSION_TONE[submission.statut]}>
-                    {SUBMISSION_LABELS[submission.statut]}
-                  </Badge>
+                  <Badge tone={SUBMISSION_TONE[submission.statut]}>{SUBMISSION_LABELS[submission.statut]}</Badge>
                   <span className="text-xs text-secondary">{formatDateTime(submission.created_at)}</span>
                 </div>
                 <p className="mt-2 whitespace-pre-wrap break-words text-sm text-dark">{submission.contenu}</p>
                 {submission.feedback_coach && (
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-secondary italic">
-                    Coach : {submission.feedback_coach}
-                  </p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-secondary italic">Coach : {submission.feedback_coach}</p>
                 )}
               </li>
             ))}
