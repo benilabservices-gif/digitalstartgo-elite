@@ -15,37 +15,6 @@ import {
 } from "@/lib/missions/status";
 import { Clock, FileText, CheckCircle2, AlertCircle, BookOpen, ArrowRight } from "lucide-react";
 
-interface MissionData {
-  id: string;
-  number: number;
-  title: string;
-  objective: string;
-  estimated_duration_minutes: number;
-  stage_id: string;
-  stages?: { number: number; title: string } | null;
-}
-
-interface ProgressData {
-  id: string;
-  status: string;
-}
-
-interface SubmissionRow {
-  id: string;
-  contenu: string;
-  statut: SubmissionStatus;
-  feedback_coach: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-interface ResourceRow {
-  id: string;
-  slug: string;
-  title: string;
-  description: string;
-}
-
 const SUBMISSION_TONE: Record<SubmissionStatus, "default" | "success" | "warning" | "error"> = {
   soumis: "warning",
   a_corriger: "error",
@@ -58,41 +27,6 @@ const SUBMISSION_LABELS: Record<SubmissionStatus, string> = {
   valide: "Validé",
 };
 
-// Helper: fetch with service role to bypass RLS
-async function svcFetch<T>(path: string): Promise<T | null> {
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_SUPABASE_URL!}/rest/v1/${path}`,
-    {
-      headers: {
-        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-        "Content-Type": "application/json",
-        Prefer: "return=representation",
-      },
-      cache: "no-store",
-    }
-  );
-  if (!res.ok) return null;
-  const data: T[] = await res.json();
-  return data?.[0] ?? null;
-}
-
-async function svcFetchAll<T>(path: string): Promise<T[]> {
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_SUPABASE_URL!}/rest/v1/${path}`,
-    {
-      headers: {
-        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-        "Content-Type": "application/json",
-      },
-      cache: "no-store",
-    }
-  );
-  if (!res.ok) return [];
-  return (await res.json()) as T[];
-}
-
 export default async function MissionPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
   const {
@@ -101,31 +35,79 @@ export default async function MissionPage({ params }: { params: { id: string } }
 
   if (!user) redirect("/login");
 
-  // Fetch mission data via service role
-  const mission = await svcFetch<MissionData>(`missions?id=eq.${params.id}&select=id,number,title,objective,estimated_duration_minutes,stages(number,title)`);
-  if (!mission) notFound();
+  // Get mission
+  const { data: missionData } = await supabase
+    .from("missions")
+    .select("id, number, title, objective, estimated_duration_minutes, stages(number, title)")
+    .eq("id", params.id)
+    .maybeSingle();
 
-  // Fetch progress
-  const progressList = await svcFetchAll<ProgressData>(
-    `mission_progress?profile_id=eq.${user.id}&mission_id=eq.${params.id}&select=id,status`
-  );
-  const progress = progressList[0] ?? null;
-  const status = toMissionStatus(progress?.status);
+  if (!missionData) notFound();
 
-  // Fetch submissions
-  const submissions: SubmissionRow[] = progress
-    ? await svcFetchAll<SubmissionRow>(
-        `mission_submissions?mission_progress_id=eq.${progress.id}&select=id,contenu,statut,feedback_coach,created_at,updated_at&order=created_at.desc`
-      )
-    : [];
+  const mission = missionData as {
+    id: string;
+    number: number;
+    title: string;
+    objective: string;
+    estimated_duration_minutes: number;
+    stages: { number: number; title: string } | null;
+  };
 
-  // Fetch stage resources
-  const stageId = mission.stage_id;
-  const allResources: ResourceRow[] = stageId
-    ? await svcFetchAll<ResourceRow>(
-        `resources?stage_id=eq.${stageId}&select=id,slug,title,description&order=order_index.asc`
-      )
-    : [];
+  // Get progress
+  const { data: progressData } = await supabase
+    .from("mission_progress")
+    .select("id, status")
+    .eq("profile_id", user.id)
+    .eq("mission_id", mission.id)
+    .maybeSingle();
+
+  const status = toMissionStatus(progressData?.status);
+
+  // Get submissions
+  let submissions: Array<{
+    id: string;
+    contenu: string;
+    statut: SubmissionStatus;
+    feedback_coach: string | null;
+    created_at: string;
+    updated_at: string;
+  }> = [];
+
+  if (progressData) {
+    const { data: subs } = await supabase
+      .from("mission_submissions")
+      .select("id, contenu, statut, feedback_coach, created_at, updated_at")
+      .eq("mission_progress_id", progressData.id)
+      .order("created_at", { ascending: false });
+    submissions = subs ?? [];
+  }
+
+  // Get resources for this stage
+  const { data: resources } = mission.stages
+    ? await supabase
+        .from("resources")
+        .select("id, slug, title, description")
+        .eq("stage_id", mission.stages.number > 0 ? null : null)
+        .limit(3)
+    : { data: [] };
+
+  // Fetch resources by stage number
+  let allResources: Array<{ id: string; slug: string; title: string; description: string }> = [];
+  if (mission.stages?.number) {
+    const { data: stages } = await supabase
+      .from("stages")
+      .select("id")
+      .eq("number", mission.stages.number)
+      .maybeSingle();
+    if (stages) {
+      const { data: resData } = await supabase
+        .from("resources")
+        .select("id, slug, title, description")
+        .eq("stage_id", stages.id)
+        .order("order_index");
+      allResources = resData ?? [];
+    }
+  }
 
   const lastSubmission = submissions[0] ?? null;
   const blockedReason = submissionBlockedReason(status);
@@ -166,18 +148,14 @@ export default async function MissionPage({ params }: { params: { id: string } }
         </div>
       </div>
 
-      {/* Objectif + Guide d'aide */}
+      {/* Objectif + Guide */}
       <div className="grid gap-4 sm:grid-cols-2 mb-6">
         <PremiumCard title="Objectif de la mission">
           <p className="text-[1.0625rem] leading-relaxed text-dark">{mission.objective}</p>
         </PremiumCard>
 
         {allResources.length > 0 ? (
-          <PremiumCard
-            title="Guide pratique"
-            subtitle={`${allResources.length} ressource(s) pour vous aider`}
-            glow
-          >
+          <PremiumCard title="Guide pratique" subtitle={`${allResources.length} ressource(s)`} glow>
             <div className="space-y-3">
               {allResources.slice(0, 2).map((resource) => (
                 <Link
@@ -198,10 +176,7 @@ export default async function MissionPage({ params }: { params: { id: string } }
                 </Link>
               ))}
               {allResources.length > 2 && (
-                <Link
-                  href="/ressources"
-                  className="block text-xs font-medium text-ochre hover:underline text-center pt-1"
-                >
+                <Link href="/ressources" className="block text-xs font-medium text-ochre hover:underline text-center pt-1">
                   Voir toutes les ressources →
                 </Link>
               )}
@@ -210,7 +185,7 @@ export default async function MissionPage({ params }: { params: { id: string } }
         ) : (
           <PremiumCard title="Guide pratique">
             <p className="text-sm text-secondary">
-              Les guides pratiques seront ajoutés prochainement. En attendant, consultez la section Ressources du menu.
+              Les guides pratiques seront ajoutés prochainement. Consultez la section Ressources du menu.
             </p>
           </PremiumCard>
         )}
@@ -238,7 +213,7 @@ export default async function MissionPage({ params }: { params: { id: string } }
         {canSubmitMission(status) ? (
           <MissionSubmissionForm
             missionId={mission.id}
-            missionProgressId={progress?.id ?? null}
+            missionProgressId={progressData?.id ?? null}
             isCorrection={status === "a_corriger"}
             missionTitle={mission.title}
           />
@@ -272,13 +247,9 @@ export default async function MissionPage({ params }: { params: { id: string } }
                   <Badge tone={SUBMISSION_TONE[submission.statut]}>
                     {SUBMISSION_LABELS[submission.statut]}
                   </Badge>
-                  <span className="text-xs text-secondary">
-                    {formatDateTime(submission.created_at)}
-                  </span>
+                  <span className="text-xs text-secondary">{formatDateTime(submission.created_at)}</span>
                 </div>
-                <p className="mt-2 whitespace-pre-wrap break-words text-sm text-dark">
-                  {submission.contenu}
-                </p>
+                <p className="mt-2 whitespace-pre-wrap break-words text-sm text-dark">{submission.contenu}</p>
                 {submission.feedback_coach && (
                   <p className="mt-2 whitespace-pre-wrap text-sm text-secondary italic">
                     Coach : {submission.feedback_coach}
