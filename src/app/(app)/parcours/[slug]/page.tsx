@@ -50,7 +50,6 @@ export default async function StagePage({ params }: { params: { slug: string } }
 
   if (!profile?.onboarding_completed) redirect("/onboarding");
 
-  // Fetch stage with its missions
   const { data: stageData, error: stageError } = await supabase
     .from("stages")
     .select("id, number, slug, title, objective, order_index, missions(id, number, title, objective, estimated_duration_minutes)")
@@ -67,8 +66,7 @@ export default async function StagePage({ params }: { params: { slug: string } }
           <h1 className="t-display-mid text-2xl text-dark">Parcours en construction</h1>
           <p className="max-w-md text-secondary">
             Le module <strong>{params.slug}</strong> n&apos;est pas encore disponible.
-            Appliquez la migration <code className="rounded bg-paper/50 px-1 text-sm">supabase/scripts/setup.sql</code>{" "}
-            dans le SQL Editor de Supabase pour initialiser la base de données.
+            Appliquez les migrations depuis <code className="rounded bg-paper/50 px-1 text-sm">supabase/scripts/setup.sql</code>.
           </p>
           <Link
             href="/dashboard"
@@ -85,7 +83,7 @@ export default async function StagePage({ params }: { params: { slug: string } }
   const stage = stageData as unknown as StageRow;
   const stageNum = stage.number;
 
-  // Check if ALL previous stages are fully validated (lock logic)
+  // Lock logic: check ALL previous stages
   let isLocked = false;
   if (stageNum > 1) {
     const { data: prevStagesData } = await supabase
@@ -141,14 +139,17 @@ export default async function StagePage({ params }: { params: { slug: string } }
   const nextStage = (nextStageData ?? [0])[0] as { slug: string; title: string; number: number } | null;
 
   // Fetch resources for THIS stage
-  const { data: stageResources } = await supabase
-    .from("resources")
-    .select("id, slug, title, description, content_blocks")
-    .eq("stage_id", stage.id)
-    .order("order_index")
-    .limit(5);
+  let stageResources: any[] = [];
+  if (!isLocked) {
+    const { data: resData } = await supabase
+      .from("resources")
+      .select("id, slug, title, description")
+      .eq("stage_id", stage.id)
+      .order("order_index")
+      .limit(3);
+    stageResources = resData ?? [];
+  }
 
-  // Find current mission in this stage
   const currentMission = stage.missions.find((m) => progressByMission.get(m.id) !== "valide");
 
   return (
@@ -192,12 +193,12 @@ export default async function StagePage({ params }: { params: { slug: string } }
       </div>
 
       {/* Guides pratiques de l'étape */}
-      {(stageResources ?? []).length > 0 && !isLocked && (
+      {stageResources.length > 0 && !isLocked && (
         <div className="mb-6 space-y-3">
           <p className="t-meta text-xs uppercase tracking-widest text-ochre">
             Guides pratiques — Étape {String(stageNum).padStart(2, "0")}
           </p>
-          {(stageResources ?? []).map((resource: any) => (
+          {stageResources.map((resource: any) => (
             <Link
               key={resource.id}
               href={`/ressources/${resource.slug}`}
@@ -248,7 +249,7 @@ export default async function StagePage({ params }: { params: { slug: string } }
                     }`}>
                       {status === "valide" ? <CheckCircle2 className="h-4 w-4" /> : String(mission.number).padStart(2, "0")}
                     </span>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className="font-semibold text-dark">{mission.title}</h3>
                         <Badge tone={MISSION_STATUS_TONE[status]}>{MISSION_STATUS_LABELS[status]}</Badge>
@@ -282,9 +283,12 @@ export default async function StagePage({ params }: { params: { slug: string } }
                         <CheckCircle2 className="h-3 w-3" /> Validé
                       </span>
                     ) : status === "soumis" ? (
-                      <span className="flex items-center gap-1.5 rounded-[2px] border border-ochre/30 bg-ochre/5 px-3 py-1.5 text-xs text-ochre">
-                        En attente
-                      </span>
+                      <Link
+                        href={`/missions/${mission.id}`}
+                        className="flex items-center gap-1.5 rounded-[2px] border border-ochre/30 bg-ochre/5 px-3 py-1.5 text-xs text-ochre hover:bg-ochre/10"
+                      >
+                        <FileText className="h-3 w-3" /> Voir mon livrable
+                      </Link>
                     ) : (
                       <Link
                         href={`/missions/${mission.id}`}
@@ -301,7 +305,7 @@ export default async function StagePage({ params }: { params: { slug: string } }
         </div>
       )}
 
-      {/* Next stage */}
+      {/* Next stage CTA */}
       {nextStage && !allValidated && (
         <div className="mt-6 rounded-[2px] border border-dashed border-dark/15 bg-paper/50 p-4 text-center">
           <p className="text-sm text-secondary">

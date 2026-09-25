@@ -11,7 +11,7 @@ import {
 } from "@/lib/diagnostic/scoring";
 import { Button } from "@/components/ui/Button";
 import { PremiumCard } from "@/components/app-ui/PremiumCard";
-import { CheckCircle2, ArrowRight, RotateCcw, Play } from "lucide-react";
+import { CheckCircle2, ArrowRight, RotateCcw, Play, FileText, ExternalLink } from "lucide-react";
 
 const DEFAULT_ANSWERS: DiagnosticAnswers = DIAGNOSTIC_CATEGORIES.reduce(
   (acc, { id }) => ({ ...acc, [id]: 5 }),
@@ -26,7 +26,8 @@ export default function DiagnosticPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
   const [existingResult, setExistingResult] = useState<DiagnosticResult | null>(null);
-  const [progressCreated, setProgressCreated] = useState(false);
+  const [missionProgressId, setMissionProgressId] = useState<string | null>(null);
+  const [missionStatus, setMissionStatus] = useState<string | null>(null);
 
   useEffect(() => {
     async function checkExisting() {
@@ -39,7 +40,7 @@ export default function DiagnosticPage() {
 
       const { data } = await supabase
         .from("diagnostics")
-        .select("score, priorities, answers")
+        .select("score, priorities")
         .eq("profile_id", user.id)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -51,25 +52,34 @@ export default function DiagnosticPage() {
           priorities: (data.priorities as string[]) ?? [],
         });
 
-        // Check if mission_progress already exists for the diagnostic mission
+        // Check mission progress for stage 1
         const { data: stagesData } = await supabase
           .from("stages")
-          .select("missions(id)")
+          .select("id")
           .eq("number", 1)
           .limit(1)
           .maybeSingle();
 
-        if (stagesData?.missions?.[0]?.id) {
-          const missionId = stagesData.missions[0].id;
-          const { data: progress } = await supabase
-            .from("mission_progress")
+        if (stagesData?.id) {
+          const { data: missionsData } = await supabase
+            .from("missions")
             .select("id")
-            .eq("profile_id", user.id)
-            .eq("mission_id", missionId)
-            .maybeSingle();
+            .eq("stage_id", stagesData.id)
+            .limit(1);
 
-          if (progress) {
-            setProgressCreated(true);
+          if (missionsData?.[0]?.id) {
+            const missionId = missionsData[0].id;
+            const { data: progress } = await supabase
+              .from("mission_progress")
+              .select("id, status")
+              .eq("profile_id", user.id)
+              .eq("mission_id", missionId)
+              .maybeSingle();
+
+            if (progress) {
+              setMissionProgressId(progress.id as string);
+              setMissionStatus(progress.status as string);
+            }
           }
         }
       }
@@ -81,32 +91,47 @@ export default function DiagnosticPage() {
 
   async function createMissionProgress(supabase: ReturnType<typeof createClient>, userId: string) {
     try {
-      // Get the stage 1 mission
       const { data: stagesData } = await supabase
         .from("stages")
-        .select("missions(id)")
+        .select("id")
         .eq("number", 1)
         .limit(1)
         .maybeSingle();
 
-      if (!stagesData?.missions?.[0]?.id) return;
+      if (!stagesData?.id) return;
 
-      const missionId = stagesData.missions[0].id;
+      const { data: missionsData } = await supabase
+        .from("missions")
+        .select("id")
+        .eq("stage_id", stagesData.id)
+        .limit(1);
 
-      // Check if progress already exists
+      if (!missionsData?.[0]?.id) return;
+
+      const missionId = missionsData[0].id;
+
       const { data: existing } = await supabase
         .from("mission_progress")
-        .select("id")
+        .select("id, status")
         .eq("profile_id", userId)
         .eq("mission_id", missionId)
         .maybeSingle();
 
       if (!existing) {
-        await supabase
+        const { data: created } = await supabase
           .from("mission_progress")
-          .insert({ profile_id: userId, mission_id: missionId });
+          .insert({ profile_id: userId, mission_id: missionId })
+          .select("id, status")
+          .single();
+
+        if (created) {
+          setMissionProgressId(created.id as string);
+          setMissionStatus(created.status as string);
+        }
+      } else {
+        setMissionProgressId(existing.id as string);
+        setMissionStatus(existing.status as string);
       }
-      setProgressCreated(true);
     } catch {
       // Silencieux — ne pas bloquer le flow si la table n'existe pas
     }
@@ -126,7 +151,7 @@ export default function DiagnosticPage() {
 
     if (!user) {
       setSaving(false);
-      setSaveError("Une erreur est survenue. Votre score n'a pas pu être enregistré. Réessayez.");
+      setSaveError("Une erreur est survenue. Réessayez.");
       return;
     }
 
@@ -140,11 +165,10 @@ export default function DiagnosticPage() {
     setSaving(false);
 
     if (error) {
-      setSaveError("Une erreur est survenue. Votre score n'a pas pu être enregistré. Réessayez.");
+      setSaveError("Une erreur est survenue. Réessayez.");
       return;
     }
 
-    // Auto-create mission progress for stage 1
     await createMissionProgress(supabase, user.id);
     setResult(computed);
   }
@@ -159,7 +183,8 @@ export default function DiagnosticPage() {
     await supabase.from("diagnostics").delete().eq("profile_id", user.id);
     setExistingResult(null);
     setResult(null);
-    setProgressCreated(false);
+    setMissionProgressId(null);
+    setMissionStatus(null);
     setAnswers(DEFAULT_ANSWERS);
   }
 
@@ -170,7 +195,7 @@ export default function DiagnosticPage() {
       <div className="mx-auto max-w-xl px-6 py-20 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-gold border-t-transparent" />
-          <p className="text-sm text-secondary">Chargement de votre diagnostic…</p>
+          <p className="text-sm text-secondary">Chargement...</p>
         </div>
       </div>
     );
@@ -211,26 +236,60 @@ export default function DiagnosticPage() {
             </ol>
           </PremiumCard>
 
-          {/* CTA principal : aller à l'étape suivante */}
+          {/* CTA selon le statut de la mission */}
           <div className="mt-6 flex flex-col gap-3">
-            <Button
-              className="w-full flex items-center justify-center gap-2"
-              onClick={() => router.push(progressCreated ? "/parcours/offre" : "/parcours/diagnostic")}
-            >
-              <Play className="h-4 w-4" />
-              {progressCreated
-                ? "Passer à l'étape 2 — Construire mon offre"
-                : "Valider l'étape 1 — Compléter mon diagnostic"}
-            </Button>
-
-            {progressCreated ? (
-              <p className="text-center text-xs text-secondary">
-                Étape 1 validée automatiquement. Vous êtes prêt à construire votre offre.
-              </p>
+            {missionStatus === "valide" ? (
+              <>
+                <Button
+                  className="w-full flex items-center justify-center gap-2"
+                  onClick={() => router.push("/parcours/offre")}
+                >
+                  <Play className="h-4 w-4" />
+                  Passer à l&apos;étape 2 — Construire mon offre
+                </Button>
+                <p className="text-center text-xs text-success font-medium">
+                  ✅ Étape 1 terminée ! Votre diagnostic a été validé.
+                </p>
+              </>
+            ) : missionStatus === "soumis" ? (
+              <>
+                <Button
+                  className="w-full flex items-center justify-center gap-2"
+                  onClick={() => router.push("/missions")}
+                >
+                  <FileText className="h-4 w-4" />
+                  Voir mon livrable soumis
+                </Button>
+                <p className="text-center text-xs text-ochre">
+                  ⏳ En attente du retour de votre coach.
+                </p>
+              </>
+            ) : missionStatus === "a_corriger" ? (
+              <>
+                <Button
+                  className="w-full flex items-center justify-center gap-2"
+                  onClick={() => router.push("/parcours/diagnostic")}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Corriger mon diagnostic
+                </Button>
+                <p className="text-center text-xs text-error">
+                  Votre coach a demandé des modifications.
+                </p>
+              </>
             ) : (
-              <p className="text-center text-xs text-secondary">
-                Confirmez votre diagnostic pour débloquer la suite du parcours.
-              </p>
+              <>
+                <Button
+                  className="w-full flex items-center justify-center gap-2"
+                  onClick={() => router.push("/parcours/diagnostic")}
+                >
+                  <Play className="h-4 w-4" />
+                  Valider l&apos;étape 1 — Compléter mon diagnostic
+                </Button>
+                <p className="text-center text-xs text-secondary">
+                  Votre score est enregistré. Maintenant, validez votre mission pour débloquer la suite.
+                </p>
+              </>
             )}
           </div>
 
