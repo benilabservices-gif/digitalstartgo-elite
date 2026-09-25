@@ -94,24 +94,28 @@ export default async function MissionPage({ params }: { params: { id: string } }
   const blockedReason = submissionBlockedReason(status);
 
   // Fetch resources for this mission's stage
-  const { data: resources } = await supabase
-    .from("resources")
-    .select("id, slug, title, description, content_blocks")
-    .eq("stage_id", (mission as any).stages?.number ? null : null)
-    .is("stage_id", null)
-    .limit(3);
-
-  // Also fetch resources tied to the stage via missions → stages join
   const stageNumber = (mission as any).stages?.number;
-  const { data: stageResources } = stageNumber
-    ? await supabase
+  let allResources: ResourceRow[] = [];
+
+  if (stageNumber) {
+    // Get the stage ID from the stages table
+    const { data: stageRows } = await supabase
+      .from("stages")
+      .select("id")
+      .eq("number", stageNumber)
+      .limit(1);
+    const stageId = stageRows?.[0]?.id;
+
+    if (stageId) {
+      const { data: resData } = await supabase
         .from("resources")
         .select("id, slug, title, description, content_blocks")
+        .eq("stage_id", stageId)
         .order("order_index")
-        .limit(5)
-    : { data: [] };
-
-  const allResources = [...(resources ?? []), ...(stageResources ?? [])] as unknown as ResourceRow[];
+        .limit(5);
+      allResources = (resData ?? []) as unknown as ResourceRow[];
+    }
+  }
 
   // Status icon
   const statusIcon = {

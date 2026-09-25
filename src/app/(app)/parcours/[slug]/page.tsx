@@ -7,10 +7,10 @@ import {
   MISSION_STATUS_LABELS,
   MISSION_STATUS_TONE,
   toMissionStatus,
-  canSubmitMission,
 } from "@/lib/missions/status";
 import { formatDateTime } from "@/lib/missions/format";
-import { CheckCircle2, Clock, Lock, Unlock, FileText, ArrowRight, ChevronRight, AlertCircle, Database } from "lucide-react";
+import { CheckCircle2, Clock, Lock, Unlock, FileText, ArrowRight, ChevronRight, AlertCircle, Database, BookOpen } from "lucide-react";
+import type { ResourceBlock } from "@/lib/resources/types";
 
 interface StageRow {
   id: string;
@@ -26,12 +26,6 @@ interface StageRow {
     objective: string;
     estimated_duration_minutes: number;
   }[];
-}
-
-interface ProgressRow {
-  mission_id: string;
-  status: string;
-  id: string;
 }
 
 interface SubmissionRow {
@@ -63,7 +57,6 @@ export default async function StagePage({ params }: { params: { slug: string } }
     .eq("slug", params.slug)
     .maybeSingle();
 
-  // If stage doesn't exist (migrations not applied), show helpful page
   if (stageError || !stageData) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-16 text-center">
@@ -74,20 +67,12 @@ export default async function StagePage({ params }: { params: { slug: string } }
           <h1 className="t-display-mid text-2xl text-dark">Parcours en construction</h1>
           <p className="max-w-md text-secondary">
             Le module <strong>{params.slug}</strong> n&apos;est pas encore disponible.
-            Cela signifie que la base de données n&apos;a pas encore été initialisée.
+            Appliquez la migration <code className="rounded bg-paper/50 px-1 text-sm">supabase/scripts/setup.sql</code>{" "}
+            dans le SQL Editor de Supabase pour initialiser la base de données.
           </p>
-          <div className="mt-4 rounded-[2px] border border-ochre/30 bg-ochre/5 p-4 text-left max-w-md">
-            <p className="mb-2 text-sm font-semibold text-ochre">Pour débloquer le parcours :</p>
-            <ol className="list-decimal space-y-1.5 text-sm text-secondary">
-              <li>Ouvrez <strong>Supabase Dashboard</strong></li>
-              <li>Allez dans <strong>SQL Editor</strong></li>
-              <li>Copiez-collez le contenu du fichier <code className="rounded bg-paper/50 px-1">supabase/scripts/setup.sql</code></li>
-              <li>Cliquez <strong>Run</strong></li>
-            </ol>
-          </div>
           <Link
             href="/dashboard"
-            className="mt-6 inline-flex items-center gap-2 rounded-[2px] bg-gold px-5 py-2.5 text-sm font-semibold text-ink transition-all hover:bg-amber hover:shadow-[0_0_16px_rgba(240,185,40,0.3)]"
+            className="mt-6 inline-flex items-center gap-2 rounded-[2px] bg-gold px-5 py-2.5 text-sm font-semibold text-ink transition-all hover:bg-amber"
           >
             <ArrowRight className="h-4 w-4" />
             Retour au dashboard
@@ -101,27 +86,23 @@ export default async function StagePage({ params }: { params: { slug: string } }
   const stageNum = stage.number;
 
   // Check if ALL previous stages are fully validated (lock logic)
-  const { data: prevStagesData } = await supabase
-    .from("stages")
-    .select("id, missions(id)")
-    .lt("number", stageNum)
-    .order("number", { ascending: true });
-
-  const prevStages = (prevStagesData ?? []) as { id: string; missions: { id: string }[] }[];
   let isLocked = false;
+  if (stageNum > 1) {
+    const { data: prevStagesData } = await supabase
+      .from("stages")
+      .select("missions(id)")
+      .lt("number", stageNum)
+      .order("number", { ascending: true });
 
-  if (prevStages.length > 0) {
-    const allPrevMissionIds = prevStages.flatMap((s) => s.missions.map((m) => m.id));
+    const allPrevMissionIds = ((prevStagesData ?? []) as any[]).flatMap((s) => (s.missions ?? []).map((m: any) => m.id));
     if (allPrevMissionIds.length > 0) {
       const { data: prevProgress } = await supabase
         .from("mission_progress")
         .select("mission_id, status")
         .in("mission_id", allPrevMissionIds);
 
-      const prevProgressMap = new Map<string, string>();
-      (prevProgress ?? []).forEach((p: any) => prevProgressMap.set(p.mission_id, p.status));
-
-      isLocked = !allPrevMissionIds.every((mid) => prevProgressMap.get(mid) === "valide");
+      const prevMap = new Map((prevProgress ?? []).map((p: any) => [p.mission_id, p.status]));
+      isLocked = !allPrevMissionIds.every((mid) => prevMap.get(mid) === "valide");
     }
   }
 
@@ -148,40 +129,41 @@ export default async function StagePage({ params }: { params: { slug: string } }
     }
   }
 
-  // Check if this stage is fully validated
   const allValidated = stage.missions.length > 0 && stage.missions.every((m) => progressByMission.get(m.id) === "valide");
-  const hasAnyProgress = stage.missions.some((m) => progressByMission.has(m.id));
 
   // Find next stage
   const { data: nextStageData } = await supabase
     .from("stages")
-    .select("slug, title")
+    .select("slug, title, number")
     .gt("number", stageNum)
     .order("number")
     .limit(1);
-  const nextStage = (nextStageData ?? [0])[0] as { slug: string; title: string } | null;
+  const nextStage = (nextStageData ?? [0])[0] as { slug: string; title: string; number: number } | null;
 
-  // Find current (first non-validated) mission in this stage
+  // Fetch resources for THIS stage
+  const { data: stageResources } = await supabase
+    .from("resources")
+    .select("id, slug, title, description, content_blocks")
+    .eq("stage_id", stage.id)
+    .order("order_index")
+    .limit(5);
+
+  // Find current mission in this stage
   const currentMission = stage.missions.find((m) => progressByMission.get(m.id) !== "valide");
-  const currentStatus = currentMission ? toMissionStatus(progressByMission.get(currentMission.id)) : null;
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-10 pb-24 sm:pb-10">
+    <div className="mx-auto max-w-4xl px-4 py-8 pb-24 sm:px-6 sm:py-10 sm:pb-10">
       {/* Breadcrumb */}
       <nav aria-label="Breadcrumb" className="mb-6">
         <ol className="flex items-center gap-2 text-sm text-secondary">
-          <li>
-            <Link href="/dashboard" className="hover:text-ochre">
-              Mon Parcours
-            </Link>
-          </li>
+          <li><Link href="/dashboard" className="hover:text-ochre">Mon Parcours</Link></li>
           <li><ChevronRight className="h-3 w-3" /></li>
           <li className="text-ochre font-medium">Étape {String(stageNum).padStart(2, "0")} — {stage.title}</li>
         </ol>
       </nav>
 
       {/* Header */}
-      <div className="mb-8 flex items-start justify-between">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-ochre">
             Étape {String(stageNum).padStart(2, "0")} sur 8
@@ -209,14 +191,37 @@ export default async function StagePage({ params }: { params: { slug: string } }
         </div>
       </div>
 
+      {/* Guides pratiques de l'étape */}
+      {(stageResources ?? []).length > 0 && !isLocked && (
+        <div className="mb-6 space-y-3">
+          <p className="t-meta text-xs uppercase tracking-widest text-ochre">
+            Guides pratiques — Étape {String(stageNum).padStart(2, "0")}
+          </p>
+          {(stageResources ?? []).map((resource: any) => (
+            <Link
+              key={resource.id}
+              href={`/ressources/${resource.slug}`}
+              className="group flex items-start gap-3 rounded-[2px] border border-dark/8 bg-white p-4 transition-all hover:border-ochre/30 hover:shadow-sm"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[2px] bg-gold/15">
+                <BookOpen className="h-5 w-5 text-ochre" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-sm font-semibold text-dark group-hover:text-ochre transition-colors">{resource.title}</h3>
+                <p className="mt-0.5 text-xs text-secondary line-clamp-2">{resource.description}</p>
+              </div>
+              <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-secondary/50 transition-transform group-hover:translate-x-0.5 group-hover:text-ochre" />
+            </Link>
+          ))}
+        </div>
+      )}
+
       {/* Missions */}
       {stage.missions.length === 0 ? (
         <PremiumCard className="text-center py-12">
           <AlertCircle className="mx-auto mb-3 h-8 w-8 text-secondary/30" />
           <h3 className="text-lg font-semibold text-dark">Aucune mission configurée</h3>
-          <p className="mt-2 text-sm text-secondary">
-            Cette étape n&apos;a pas encore de missions associées. Contactez votre administrateur.
-          </p>
+          <p className="mt-2 text-sm text-secondary">Contactez votre administrateur.</p>
         </PremiumCard>
       ) : (
         <div className="space-y-4">
@@ -230,8 +235,8 @@ export default async function StagePage({ params }: { params: { slug: string } }
                 key={mission.id}
                 className={`transition-all ${isLocked ? "opacity-60" : ""} ${isCurrent ? "border-l-[3px] border-l-gold" : ""}`}
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-4">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex items-start gap-3 sm:gap-4">
                     <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
                       status === "valide"
                         ? "bg-success/15 text-success"
@@ -241,25 +246,21 @@ export default async function StagePage({ params }: { params: { slug: string } }
                         ? "bg-ochre/15 text-ochre"
                         : "bg-dark/10 text-secondary"
                     }`}>
-                      {status === "valide" ? (
-                        <CheckCircle2 className="h-4 w-4" />
-                      ) : String(mission.number).padStart(2, "0")}
+                      {status === "valide" ? <CheckCircle2 className="h-4 w-4" /> : String(mission.number).padStart(2, "0")}
                     </span>
-                    <div>
-                      <div className="flex items-center gap-2">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
                         <h3 className="font-semibold text-dark">{mission.title}</h3>
                         <Badge tone={MISSION_STATUS_TONE[status]}>{MISSION_STATUS_LABELS[status]}</Badge>
                       </div>
                       <p className="mt-1 text-sm text-secondary">{mission.objective}</p>
                       <div className="mt-2 flex items-center gap-3 text-xs text-secondary">
                         <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          ~{mission.estimated_duration_minutes} min
+                          <Clock className="h-3 w-3" />~{mission.estimated_duration_minutes} min
                         </span>
                         {submission?.feedback_coach && (
                           <span className="flex items-center gap-1 text-ochre">
-                            <FileText className="h-3 w-3" />
-                            Feedback coach disponible
+                            <FileText className="h-3 w-3" />Feedback disponible
                           </span>
                         )}
                       </div>
@@ -271,7 +272,7 @@ export default async function StagePage({ params }: { params: { slug: string } }
                     </div>
                   </div>
 
-                  <div className="flex shrink-0 flex-col items-end gap-2">
+                  <div className="flex shrink-0 items-center sm:flex-col sm:items-end sm:gap-2">
                     {isLocked ? (
                       <span className="flex items-center gap-1.5 rounded-[2px] border border-dark/10 px-3 py-1.5 text-xs text-secondary">
                         <Lock className="h-3 w-3" /> Verrouillé
@@ -292,11 +293,6 @@ export default async function StagePage({ params }: { params: { slug: string } }
                         Commencer <ArrowRight className="h-3 w-3" />
                       </Link>
                     )}
-                    {submission?.created_at && (
-                      <span className="text-[0.625rem] text-secondary/60">
-                        {formatDateTime(submission.created_at)}
-                      </span>
-                    )}
                   </div>
                 </div>
               </PremiumCard>
@@ -305,32 +301,28 @@ export default async function StagePage({ params }: { params: { slug: string } }
         </div>
       )}
 
-      {/* Next stage CTA */}
+      {/* Next stage */}
       {nextStage && !allValidated && (
         <div className="mt-6 rounded-[2px] border border-dashed border-dark/15 bg-paper/50 p-4 text-center">
           <p className="text-sm text-secondary">
-            Validez toutes les missions de cette étape pour débloquer :{" "}
-            <span className="font-semibold text-ochre">Étape {String(stageNum + 1).padStart(2, "0")} — {nextStage.title}</span>
+            Validez toutes les missions pour débloquer :{" "}
+            <span className="font-semibold text-ochre">Étape {String(nextStage.number).padStart(2, "0")} — {nextStage.title}</span>
           </p>
         </div>
       )}
 
       {allValidated && nextStage && (
-        <div className="mt-6">
-          <Link
-            href={`/parcours/${nextStage.slug}`}
-            className="group flex items-center gap-3 rounded-[2px] border border-gold/30 bg-gold/5 px-5 py-4 transition-all hover:bg-gold/10"
-          >
-            <Unlock className="h-5 w-5 text-gold" />
-            <div>
-              <p className="font-semibold text-dark">Étape suivante débloquée !</p>
-              <p className="text-sm text-secondary">
-                Étape {String(stageNum + 1).padStart(2, "0")} — {nextStage.title}
-              </p>
-            </div>
-            <ArrowRight className="ml-auto h-5 w-5 text-gold transition-transform group-hover:translate-x-1" />
-          </Link>
-        </div>
+        <Link
+          href={`/parcours/${nextStage.slug}`}
+          className="group mt-6 flex items-center gap-3 rounded-[2px] border border-gold/30 bg-gold/5 p-5 transition-all hover:bg-gold/10"
+        >
+          <Unlock className="h-5 w-5 shrink-0 text-gold" />
+          <div>
+            <p className="font-semibold text-dark">Étape suivante débloquée !</p>
+            <p className="text-sm text-secondary">Étape {String(nextStage.number).padStart(2, "0")} — {nextStage.title}</p>
+          </div>
+          <ArrowRight className="ml-auto h-5 w-5 text-gold transition-transform group-hover:translate-x-1" />
+        </Link>
       )}
     </div>
   );

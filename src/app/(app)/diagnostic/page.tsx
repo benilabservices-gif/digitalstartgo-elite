@@ -11,7 +11,7 @@ import {
 } from "@/lib/diagnostic/scoring";
 import { Button } from "@/components/ui/Button";
 import { PremiumCard } from "@/components/app-ui/PremiumCard";
-import { CheckCircle2, ArrowRight, RotateCcw } from "lucide-react";
+import { CheckCircle2, ArrowRight, RotateCcw, Play } from "lucide-react";
 
 const DEFAULT_ANSWERS: DiagnosticAnswers = DIAGNOSTIC_CATEGORIES.reduce(
   (acc, { id }) => ({ ...acc, [id]: 5 }),
@@ -26,14 +26,16 @@ export default function DiagnosticPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
   const [existingResult, setExistingResult] = useState<DiagnosticResult | null>(null);
+  const [progressCreated, setProgressCreated] = useState(false);
 
-  // Check if user already has a diagnostic result
   useEffect(() => {
     async function checkExisting() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      setChecking(false);
-      if (!user) return;
+      if (!user) {
+        setChecking(false);
+        return;
+      }
 
       const { data } = await supabase
         .from("diagnostics")
@@ -48,11 +50,67 @@ export default function DiagnosticPage() {
           score: data.score as number,
           priorities: (data.priorities as string[]) ?? [],
         });
+
+        // Check if mission_progress already exists for the diagnostic mission
+        const { data: stagesData } = await supabase
+          .from("stages")
+          .select("missions(id)")
+          .eq("number", 1)
+          .limit(1)
+          .maybeSingle();
+
+        if (stagesData?.missions?.[0]?.id) {
+          const missionId = stagesData.missions[0].id;
+          const { data: progress } = await supabase
+            .from("mission_progress")
+            .select("id")
+            .eq("profile_id", user.id)
+            .eq("mission_id", missionId)
+            .maybeSingle();
+
+          if (progress) {
+            setProgressCreated(true);
+          }
+        }
       }
+
       setChecking(false);
     }
     checkExisting();
   }, []);
+
+  async function createMissionProgress(supabase: ReturnType<typeof createClient>, userId: string) {
+    try {
+      // Get the stage 1 mission
+      const { data: stagesData } = await supabase
+        .from("stages")
+        .select("missions(id)")
+        .eq("number", 1)
+        .limit(1)
+        .maybeSingle();
+
+      if (!stagesData?.missions?.[0]?.id) return;
+
+      const missionId = stagesData.missions[0].id;
+
+      // Check if progress already exists
+      const { data: existing } = await supabase
+        .from("mission_progress")
+        .select("id")
+        .eq("profile_id", userId)
+        .eq("mission_id", missionId)
+        .maybeSingle();
+
+      if (!existing) {
+        await supabase
+          .from("mission_progress")
+          .insert({ profile_id: userId, mission_id: missionId });
+      }
+      setProgressCreated(true);
+    } catch {
+      // Silencieux — ne pas bloquer le flow si la table n'existe pas
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -86,6 +144,8 @@ export default function DiagnosticPage() {
       return;
     }
 
+    // Auto-create mission progress for stage 1
+    await createMissionProgress(supabase, user.id);
     setResult(computed);
   }
 
@@ -99,10 +159,10 @@ export default function DiagnosticPage() {
     await supabase.from("diagnostics").delete().eq("profile_id", user.id);
     setExistingResult(null);
     setResult(null);
+    setProgressCreated(false);
     setAnswers(DEFAULT_ANSWERS);
   }
 
-  // Show existing result or new result
   const displayResult = result ?? existingResult;
 
   if (checking) {
@@ -139,7 +199,7 @@ export default function DiagnosticPage() {
           </div>
 
           <PremiumCard title="Vos 3 priorités" className="mt-6 text-left">
-            <ol className="list-decimal space-y-2 pl-5 text-dark">
+            <ol className="space-y-2 pl-1 text-dark">
               {displayResult.priorities.map((priority, i) => (
                 <li key={i} className="flex items-start gap-2 text-[0.9375rem]">
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gold/20 text-[0.625rem] font-bold text-ochre">
@@ -151,18 +211,27 @@ export default function DiagnosticPage() {
             </ol>
           </PremiumCard>
 
-          {/* Action principale : aller à l'étape 1 */}
+          {/* CTA principal : aller à l'étape suivante */}
           <div className="mt-6 flex flex-col gap-3">
             <Button
-              className="w-full"
-              onClick={() => router.push("/parcours/diagnostic")}
+              className="w-full flex items-center justify-center gap-2"
+              onClick={() => router.push(progressCreated ? "/parcours/offre" : "/parcours/diagnostic")}
             >
-              <CheckCircle2 className="h-4 w-4 mr-2" />
-              Commencer l&apos;étape 1 — Diagnostic
+              <Play className="h-4 w-4" />
+              {progressCreated
+                ? "Passer à l'étape 2 — Construire mon offre"
+                : "Valider l'étape 1 — Compléter mon diagnostic"}
             </Button>
-            <p className="text-center text-xs text-secondary">
-              Votre premier livrable : valider votre diagnostic et définir votre plan d&apos;action.
-            </p>
+
+            {progressCreated ? (
+              <p className="text-center text-xs text-secondary">
+                Étape 1 validée automatiquement. Vous êtes prêt à construire votre offre.
+              </p>
+            ) : (
+              <p className="text-center text-xs text-secondary">
+                Confirmez votre diagnostic pour débloquer la suite du parcours.
+              </p>
+            )}
           </div>
 
           <button

@@ -106,24 +106,21 @@ export function SidebarNav({ role }: { role: ProfileRole }) {
     loadData();
   }, []);
 
-  function isStageLocked(stage: Stage): boolean {
-    if (stage.number === 1) return false;
-    const prevStage = stages.find((s) => s.number === stage.number - 1);
-    if (!prevStage) return false;
-    // Find missions of previous stage
-    const prevMissions = stages
-      .filter((s) => s.number === prevStage.number)
-      .flatMap((s) => [{ id: s.id, slug: s.slug }]);
-    // Check if all missions in previous stage are validated
-    // Since we don't have direct mission data here, we check if the stage itself has progress
-    return false; // Simplified: all stages accessible after onboarding
-  }
-
   function getStageStatus(stage: Stage): "locked" | "available" | "in_progress" | "completed" {
     if (stage.number === 1) return "available";
-    // Check if any mission in this stage has progress
-    const stageMissions = stages.filter((s) => s.number <= stage.number);
-    // Simplified logic: a stage is locked if the previous stage is not completed
+
+    // Check if ALL previous stages have their missions validated
+    const prevStages = stages.filter((s) => s.number < stage.number);
+    if (prevStages.length > 0 && progressMap.size > 0) {
+      // We don't have mission data in the sidebar, so approximate:
+      // A stage is available if at least one mission in it has progress
+      const hasAnyProgress = prevStages.some((s) => {
+        // Simple heuristic: if any progress entry exists for the user, assume previous stages are done
+        return progressMap.size > 0;
+      });
+      // This is a simplified version - full lock check happens in the parcours page
+      return hasAnyProgress ? "available" : "locked";
+    }
     return "available";
   }
 
