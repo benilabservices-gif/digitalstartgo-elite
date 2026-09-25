@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -9,7 +9,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Mission ID requis" }, { status: 400 });
   }
 
-  const supabase = createClient();
+  const supabase = createServiceClient();
 
   // Query missions with service role (bypasses RLS)
   const { data: mission, error: missionError } = await supabase

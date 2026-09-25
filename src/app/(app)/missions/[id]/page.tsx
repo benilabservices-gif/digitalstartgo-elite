@@ -13,16 +13,21 @@ import {
   toMissionStatus,
   type SubmissionStatus,
 } from "@/lib/missions/status";
-import { Clock, FileText, History, CheckCircle2, AlertCircle, BookOpen, ArrowRight } from "lucide-react";
-import type { ResourceBlock } from "@/lib/resources/types";
+import { Clock, FileText, CheckCircle2, AlertCircle, BookOpen, ArrowRight } from "lucide-react";
 
-interface MissionRow {
+interface MissionData {
   id: string;
   number: number;
   title: string;
   objective: string;
   estimated_duration_minutes: number;
-  stages: { number: number; title: string } | null;
+  stage_id: string;
+  stages?: { number: number; title: string } | null;
+}
+
+interface ProgressData {
+  id: string;
+  status: string;
 }
 
 interface SubmissionRow {
@@ -39,7 +44,6 @@ interface ResourceRow {
   slug: string;
   title: string;
   description: string;
-  content_blocks: ResourceBlock[] | null;
 }
 
 const SUBMISSION_TONE: Record<SubmissionStatus, "default" | "success" | "warning" | "error"> = {
@@ -54,6 +58,41 @@ const SUBMISSION_LABELS: Record<SubmissionStatus, string> = {
   valide: "Validé",
 };
 
+// Helper: fetch with service role to bypass RLS
+async function svcFetch<T>(path: string): Promise<T | null> {
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL!}/rest/v1/${path}`,
+    {
+      headers: {
+        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
+        "Content-Type": "application/json",
+        Prefer: "return=representation",
+      },
+      cache: "no-store",
+    }
+  );
+  if (!res.ok) return null;
+  const data: T[] = await res.json();
+  return data?.[0] ?? null;
+}
+
+async function svcFetchAll<T>(path: string): Promise<T[]> {
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL!}/rest/v1/${path}`,
+    {
+      headers: {
+        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+    }
+  );
+  if (!res.ok) return [];
+  return (await res.json()) as T[];
+}
+
 export default async function MissionPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
   const {
@@ -62,62 +101,35 @@ export default async function MissionPage({ params }: { params: { id: string } }
 
   if (!user) redirect("/login");
 
-  const { data: mission } = await supabase
-    .from("missions")
-    .select("id, number, title, objective, estimated_duration_minutes, stages(number, title)")
-    .eq("id", params.id)
-    .maybeSingle();
-
+  // Fetch mission data via service role
+  const mission = await svcFetch<MissionData>(`missions?id=eq.${params.id}&select=id,number,title,objective,estimated_duration_minutes,stages(number,title)`);
   if (!mission) notFound();
 
-  const missionRow = mission as unknown as MissionRow;
-
-  const { data: progress } = await supabase
-    .from("mission_progress")
-    .select("id, status")
-    .eq("profile_id", user.id)
-    .eq("mission_id", missionRow.id)
-    .maybeSingle();
-
+  // Fetch progress
+  const progressList = await svcFetchAll<ProgressData>(
+    `mission_progress?profile_id=eq.${user.id}&mission_id=eq.${params.id}&select=id,status`
+  );
+  const progress = progressList[0] ?? null;
   const status = toMissionStatus(progress?.status);
 
-  const { data: submissionRows } = progress
-    ? await supabase
-        .from("mission_submissions")
-        .select("id, contenu, statut, feedback_coach, created_at, updated_at")
-        .eq("mission_progress_id", progress.id)
-        .order("created_at", { ascending: false })
-    : { data: [] };
+  // Fetch submissions
+  const submissions: SubmissionRow[] = progress
+    ? await svcFetchAll<SubmissionRow>(
+        `mission_submissions?mission_progress_id=eq.${progress.id}&select=id,contenu,statut,feedback_coach,created_at,updated_at&order=created_at.desc`
+      )
+    : [];
 
-  const submissions = (submissionRows ?? []) as SubmissionRow[];
+  // Fetch stage resources
+  const stageId = mission.stage_id;
+  const allResources: ResourceRow[] = stageId
+    ? await svcFetchAll<ResourceRow>(
+        `resources?stage_id=eq.${stageId}&select=id,slug,title,description&order=order_index.asc`
+      )
+    : [];
+
   const lastSubmission = submissions[0] ?? null;
   const blockedReason = submissionBlockedReason(status);
 
-  // Fetch resources for this mission's stage
-  const stageNumber = (mission as any).stages?.number;
-  let allResources: ResourceRow[] = [];
-
-  if (stageNumber) {
-    // Get the stage ID from the stages table
-    const { data: stageRows } = await supabase
-      .from("stages")
-      .select("id")
-      .eq("number", stageNumber)
-      .limit(1);
-    const stageId = stageRows?.[0]?.id;
-
-    if (stageId) {
-      const { data: resData } = await supabase
-        .from("resources")
-        .select("id, slug, title, description, content_blocks")
-        .eq("stage_id", stageId)
-        .order("order_index")
-        .limit(5);
-      allResources = (resData ?? []) as unknown as ResourceRow[];
-    }
-  }
-
-  // Status icon
   const statusIcon = {
     a_faire: <AlertCircle className="h-4 w-4 text-secondary" />,
     en_cours: <Clock className="h-4 w-4 text-ochre" />,
@@ -139,17 +151,17 @@ export default async function MissionPage({ params }: { params: { id: string } }
       {/* Header */}
       <div className="mb-8">
         <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-ochre">
-          Étape {missionRow.stages?.number ?? missionRow.number} · {missionRow.stages?.title ?? "Mon Parcours"}
+          Étape {mission.stages?.number ?? mission.number} · {mission.stages?.title ?? "Mon Parcours"}
         </p>
         <div className="flex items-center gap-3">
           {statusIcon}
-          <h1 className="t-display-mid text-[clamp(1.5rem,4vw,2.25rem)] text-dark">{missionRow.title}</h1>
+          <h1 className="t-display-mid text-[clamp(1.5rem,4vw,2.25rem)] text-dark">{mission.title}</h1>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <Badge tone={MISSION_STATUS_TONE[status]}>{MISSION_STATUS_LABELS[status]}</Badge>
           <span className="flex items-center gap-1.5 text-sm text-secondary">
             <Clock className="h-3.5 w-3.5" />
-            Durée estimée : {missionRow.estimated_duration_minutes} min
+            Durée estimée : {mission.estimated_duration_minutes} min
           </span>
         </div>
       </div>
@@ -157,10 +169,9 @@ export default async function MissionPage({ params }: { params: { id: string } }
       {/* Objectif + Guide d'aide */}
       <div className="grid gap-4 sm:grid-cols-2 mb-6">
         <PremiumCard title="Objectif de la mission">
-          <p className="text-[1.0625rem] leading-relaxed text-dark">{missionRow.objective}</p>
+          <p className="text-[1.0625rem] leading-relaxed text-dark">{mission.objective}</p>
         </PremiumCard>
 
-        {/* Guide pratique de l'étape */}
         {allResources.length > 0 ? (
           <PremiumCard
             title="Guide pratique"
@@ -226,10 +237,10 @@ export default async function MissionPage({ params }: { params: { id: string } }
       >
         {canSubmitMission(status) ? (
           <MissionSubmissionForm
-            missionId={missionRow.id}
+            missionId={mission.id}
             missionProgressId={progress?.id ?? null}
             isCorrection={status === "a_corriger"}
-            missionTitle={missionRow.title}
+            missionTitle={mission.title}
           />
         ) : (
           <div className="flex items-center gap-2 text-sm text-secondary">
