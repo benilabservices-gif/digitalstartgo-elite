@@ -44,14 +44,7 @@ export default async function MissionPage({ params }: { params: { id: string } }
 
   if (!missionData) notFound();
 
-  const mission = missionData as {
-    id: string;
-    number: number;
-    title: string;
-    objective: string;
-    estimated_duration_minutes: number;
-    stages: { number: number; title: string } | null;
-  };
+  const mission = missionData as any;
 
   // Get progress
   const { data: progressData } = await supabase
