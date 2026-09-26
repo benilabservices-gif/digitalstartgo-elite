@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/cohorts/admin";
 import { PremiumCard } from "@/components/app-ui/PremiumCard";
 import { formatDateTime } from "@/lib/missions/format";
+import { fetchParticipantNames } from "@/lib/missions/coach";
 import { Inbox, Clock, CheckCircle2, XCircle } from "lucide-react";
 
 interface PendingSubmissionRow {
@@ -11,7 +12,6 @@ interface PendingSubmissionRow {
   mission_progress: {
     profile_id: string;
     missions: { number: number; title: string } | null;
-    profile: { business_name: string | null; full_name: string | null } | null;
   } | null;
 }
 
@@ -21,11 +21,17 @@ export default async function AdminLivrablesPage() {
   // Récupérer les soumissions en attente
   const { data } = await supabase
     .from("mission_submissions")
-    .select("id, created_at, statut, mission_progress(profile_id, missions(number, title), profile(business_name, full_name))")
+    .select("id, created_at, statut, mission_progress(profile_id, missions(number, title))")
     .eq("statut", "soumis")
     .order("created_at", { ascending: true });
 
   const submissions = (data ?? []) as unknown as PendingSubmissionRow[];
+
+  // Récupérer les noms des participants
+  const profileIds = submissions
+    .map((s) => s.mission_progress?.profile_id)
+    .filter((id): id is string => !!id);
+  const nameMap = await fetchParticipantNames(supabase, profileIds);
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10 pb-24 sm:pb-10">
@@ -47,12 +53,11 @@ export default async function AdminLivrablesPage() {
       </div>
 
       {submissions.length > 0 ? (
-        <PremiumCard title={`File d'attente · ${submissions.length} en attente`}>
+        <PremiumCard title={`File d&apos;attente · ${submissions.length} en attente`}>
           <ol className="space-y-3">
             {submissions.map((submission, index) => {
               const mission = submission.mission_progress?.missions;
-              const profile = submission.mission_progress?.profile;
-              const participantName = profile?.business_name ?? profile?.full_name ?? "Participant";
+              const participantName = nameMap.get(submission.mission_progress?.profile_id ?? "") ?? "Participant";
 
               return (
                 <li

@@ -86,7 +86,10 @@ export function BottomNav({ role }: { role: ProfileRole }) {
     <nav className="fixed inset-x-0 bottom-0 z-40 flex items-center border-t border-paper/20 bg-ink/95 backdrop-blur-lg sm:hidden">
       <div className="flex flex-1 items-stretch">
         {items.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+          // Pour /admin, actif uniquement sur la racine exacte
+          const isActive = item.href === "/admin"
+            ? pathname === "/admin"
+            : pathname === item.href || pathname.startsWith(item.href + "/");
           return (
             <Link
               key={item.href}

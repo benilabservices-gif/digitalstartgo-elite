@@ -1,8 +1,6 @@
 import { requireAdmin } from "@/lib/cohorts/admin";
 import { PremiumCard } from "@/components/app-ui/PremiumCard";
-import { Badge } from "@/components/ui/Badge";
 import { GrantSubscriptionButton } from "@/components/admin/GrantSubscriptionButton";
-import type { ProfileForAssignment } from "@/lib/cohorts/types";
 import { CreditCard, CheckCircle2, AlertCircle } from "lucide-react";
 
 interface SubscriptionRow {
@@ -11,13 +9,22 @@ interface SubscriptionRow {
   expires_at: string;
 }
 
+interface MemberRow {
+  id: string;
+  email: string;
+  full_name: string | null;
+  business_name: string | null;
+  role: string;
+  subscription_active: boolean;
+}
+
 export default async function AdminAbonnementsPage() {
   const { supabase } = await requireAdmin();
 
-  const { data: profilesData } = await supabase.rpc("admin_list_profiles");
-  const profiles = ((profilesData ?? []) as ProfileForAssignment[]).filter(
-    (profile) => profile.role === "participant"
-  );
+  // Utiliser admin_list_members() pour avoir email et noms
+  const { data: membersData } = await supabase.rpc("admin_list_members");
+  const members = (membersData ?? []) as MemberRow[];
+  const participants = members.filter((m) => m.role === "participant");
 
   const { data: subscriptionsData } = await supabase
     .from("subscriptions")
@@ -33,7 +40,7 @@ export default async function AdminAbonnementsPage() {
   }
 
   const activeCount = activeByProfile.size;
-  const totalCount = profiles.length;
+  const totalCount = participants.length;
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10 pb-24 sm:pb-10">
@@ -67,27 +74,28 @@ export default async function AdminAbonnementsPage() {
       </div>
 
       <PremiumCard title={`Participants · ${totalCount}`}>
-        {profiles.length === 0 ? (
+        {participants.length === 0 ? (
           <div className="py-8 text-center">
             <AlertCircle className="mx-auto mb-3 h-8 w-8 text-secondary/30" />
             <p className="text-sm text-secondary">Aucun participant pour l&apos;instant.</p>
           </div>
         ) : (
           <ul className="space-y-3">
-            {profiles.map((profile) => {
-              const active = activeByProfile.get(profile.id);
+            {participants.map((member) => {
+              const active = activeByProfile.get(member.id);
+              const displayName = member.business_name ?? member.full_name;
               return (
                 <li
-                  key={profile.id}
+                  key={member.id}
                   className="flex flex-wrap items-center justify-between gap-3 rounded-[2px] border border-dark/6 px-4 py-3 transition-colors hover:border-ochre/25"
                 >
                   <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink text-[0.6875rem] font-bold text-paper">
-                      {(profile.business_name ?? profile.full_name ?? "?").charAt(0).toUpperCase()}
+                      {(displayName ?? member.email).charAt(0).toUpperCase()}
                     </div>
                     <div>
                       <p className="font-semibold text-dark">
-                        {profile.business_name ?? profile.full_name ?? profile.id}
+                        {displayName ?? member.email}
                       </p>
                       {active ? (
                         <div className="mt-0.5 flex items-center gap-1.5">
@@ -105,7 +113,7 @@ export default async function AdminAbonnementsPage() {
                       )}
                     </div>
                   </div>
-                  <GrantSubscriptionButton profileId={profile.id} />
+                  <GrantSubscriptionButton profileId={member.id} />
                 </li>
               );
             })}
