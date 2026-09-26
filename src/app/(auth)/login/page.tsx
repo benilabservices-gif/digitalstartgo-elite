@@ -26,6 +26,7 @@ export default function LoginPage() {
       setError("Email ou mot de passe incorrect.");
       return;
     }
+    // Rediriger selon le rôle
     router.push("/dashboard");
     router.refresh();
   }

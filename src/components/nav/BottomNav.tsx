@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ProfileRole } from "@/lib/profile/role";
 import { SigneVirtuose } from "@/components/marketing/LogoVirtuose";
-import { useEffect, useState } from "react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 interface NavLinkItem {
@@ -13,14 +12,25 @@ interface NavLinkItem {
   icon: string;
 }
 
-const BASE_ITEMS: NavLinkItem[] = [
+// Menu participant
+const PARTICIPANT_ITEMS: NavLinkItem[] = [
   { href: "/dashboard", label: "Accueil", icon: "home" },
   { href: "/diagnostic", label: "Diagnostic", icon: "chart" },
   { href: "/ressources", label: "Ressources", icon: "book" },
 ];
 
-const COACH_ITEM: NavLinkItem = { href: "/coach", label: "Revue", icon: "review" };
-const AI_COACH_ITEM: NavLinkItem = { href: "/coach-ai", label: "AI Coach", icon: "bot" };
+// Menu coach
+const COACH_ITEMS: NavLinkItem[] = [
+  { href: "/coach", label: "Livrables", icon: "review" },
+  { href: "/coach/participants", label: "Participants", icon: "users" },
+];
+
+// Menu admin
+const ADMIN_ITEMS: NavLinkItem[] = [
+  { href: "/admin", label: "Dashboard", icon: "home" },
+  { href: "/admin/membres", label: "Membres", icon: "users" },
+  { href: "/admin/livrables", label: "Livrables", icon: "review" },
+];
 
 function NavIcon({ name }: { name: string }) {
   const icons: Record<string, JSX.Element> = {
@@ -44,6 +54,11 @@ function NavIcon({ name }: { name: string }) {
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
       </svg>
     ),
+    users: (
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+      </svg>
+    ),
     bot: (
       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -55,11 +70,17 @@ function NavIcon({ name }: { name: string }) {
 
 export function BottomNav({ role }: { role: ProfileRole }) {
   const pathname = usePathname();
-  const items = [
-    ...BASE_ITEMS,
-    ...(role === "coach" ? [COACH_ITEM] : []),
-    AI_COACH_ITEM,
-  ];
+
+  // Déterminer les items du menu selon le rôle
+  let items: NavLinkItem[] = [];
+  if (role === "admin") {
+    items = ADMIN_ITEMS;
+  } else if (role === "coach") {
+    items = COACH_ITEMS;
+  } else {
+    // participant ou null
+    items = PARTICIPANT_ITEMS;
+  }
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 flex items-center border-t border-paper/20 bg-ink/95 backdrop-blur-lg sm:hidden">

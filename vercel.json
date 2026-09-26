@@ -1,0 +1,12 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "next build",
+  "outputDirectory": ".next",
+  "devCommand": "next dev",
+  "installCommand": "npm install",
+  "regions": ["fra1"],
+  "env": {
+    "NEXT_PUBLIC_SUPABASE_URL": "https://pixdukzflnjkzqyqilfy.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpeGR1a3pmbG5qa3pxeXFpbGZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzMTk2OTQsImV4cCI6MjEwNDg5NTY5NH0.mM0m4ySMqW21nq4iE8xX7-myIfuMLmUFacQ7BdXwdhw"
+  }
+}

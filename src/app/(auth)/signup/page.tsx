@@ -29,10 +29,10 @@ export default function SignupPage() {
       return;
     }
     if (!data.session) {
-      setInfo("Vérifiez votre boîte mail pour confirmer votre inscription avant de vous connecter.");
+      setInfo("Vérifie ta boîte mail pour confirmer ton inscription avant de te connecter.");
       return;
     }
-    router.push("/onboarding");
+    router.push("/dashboard");
     router.refresh();
   }
 

@@ -22,19 +22,27 @@ interface NavLinkItem {
   isStage?: boolean;
 }
 
-const BASE_ITEMS: NavLinkItem[] = [
+// Menu participant
+const PARTICIPANT_ITEMS: NavLinkItem[] = [
   { href: "/dashboard", label: "Mon Parcours", icon: "home" },
   { href: "/diagnostic", label: "Diagnostic", icon: "chart" },
   { href: "/ressources", label: "Ressources", icon: "book" },
 ];
 
-const COACH_ITEM: NavLinkItem = { href: "/coach", label: "Revue coach", icon: "review" };
-const ADMIN_ITEMS: NavLinkItem[] = [
-  { href: "/admin/cohorts", label: "Cohortes", icon: "users" },
-  { href: "/admin/abonnements", label: "Abonnements", icon: "credit" },
+// Menu coach
+const COACH_ITEMS: NavLinkItem[] = [
+  { href: "/coach", label: "Livrables à revoir", icon: "review" },
+  { href: "/coach/participants", label: "Mes participants", icon: "users" },
 ];
 
-const COMING_SOON_LABELS = ["Communauté"];
+// Menu admin
+const ADMIN_ITEMS: NavLinkItem[] = [
+  { href: "/admin", label: "Vue d'ensemble", icon: "home" },
+  { href: "/admin/membres", label: "Membres", icon: "users" },
+  { href: "/admin/cohorts", label: "Cohortes", icon: "users" },
+  { href: "/admin/abonnements", label: "Abonnements", icon: "credit" },
+  { href: "/admin/livrables", label: "Livrables", icon: "review" },
+];
 
 function NavIcon({ name }: { name: string }) {
   const icons: Record<string, JSX.Element> = {
@@ -109,26 +117,26 @@ export function SidebarNav({ role }: { role: ProfileRole }) {
   function getStageStatus(stage: Stage): "locked" | "available" | "in_progress" | "completed" {
     if (stage.number === 1) return "available";
 
-    // Check if ALL previous stages have their missions validated
     const prevStages = stages.filter((s) => s.number < stage.number);
     if (prevStages.length > 0 && progressMap.size > 0) {
-      // We don't have mission data in the sidebar, so approximate:
-      // A stage is available if at least one mission in it has progress
       const hasAnyProgress = prevStages.some((s) => {
-        // Simple heuristic: if any progress entry exists for the user, assume previous stages are done
         return progressMap.size > 0;
       });
-      // This is a simplified version - full lock check happens in the parcours page
       return hasAnyProgress ? "available" : "locked";
     }
     return "available";
   }
 
-  const items = [
-    ...BASE_ITEMS,
-    ...(role === "coach" ? [COACH_ITEM] : []),
-    ...(role === "admin" ? ADMIN_ITEMS : []),
-  ];
+  // Déterminer les items du menu selon le rôle
+  let items: NavLinkItem[] = [];
+  if (role === "admin") {
+    items = ADMIN_ITEMS;
+  } else if (role === "coach") {
+    items = COACH_ITEMS;
+  } else {
+    // participant ou null
+    items = PARTICIPANT_ITEMS;
+  }
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -144,7 +152,9 @@ export function SidebarNav({ role }: { role: ProfileRole }) {
         <SigneVirtuose className="h-7 w-7" />
         <div className="flex flex-col">
           <span className="t-display-mid text-[0.9375rem] text-paper">Virtuose Funnel</span>
-          <span className="t-meta text-[0.5625rem] text-steel/60">Espace membre</span>
+          <span className="t-meta text-[0.5625rem] text-steel/60">
+            {role === "admin" ? "Administration" : role === "coach" ? "Espace coach" : "Espace membre"}
+          </span>
         </div>
       </div>
 
@@ -180,61 +190,63 @@ export function SidebarNav({ role }: { role: ProfileRole }) {
           })}
         </div>
 
-        {/* Stages */}
-        <div className="mt-6">
-          <p className="mb-2 px-3 t-meta text-[0.625rem] uppercase tracking-widest text-steel/40">
-            Le Parcours
-          </p>
-          <div className="flex flex-col gap-0.5">
-            {loading ? (
-              <p className="px-3 text-xs text-steel/30">Chargement...</p>
-            ) : (
-              stages.map((stage) => {
-                const stageHref = `/parcours/${stage.slug}`;
-                const isActive = pathname === stageHref || pathname.startsWith(stageHref + "/");
-                const status = getStageStatus(stage);
-                const isLocked = status === "locked";
+        {/* Stages — uniquement pour les participants */}
+        {role === "participant" && (
+          <div className="mt-6">
+            <p className="mb-2 px-3 t-meta text-[0.625rem] uppercase tracking-widest text-steel/40">
+              Le Parcours
+            </p>
+            <div className="flex flex-col gap-0.5">
+              {loading ? (
+                <p className="px-3 text-xs text-steel/30">Chargement...</p>
+              ) : (
+                stages.map((stage) => {
+                  const stageHref = `/parcours/${stage.slug}`;
+                  const isActive = pathname === stageHref || pathname.startsWith(stageHref + "/");
+                  const status = getStageStatus(stage);
+                  const isLocked = status === "locked";
 
-                return (
-                  <Link
-                    key={stage.id}
-                    href={isLocked ? "#" : stageHref}
-                    className={`group flex items-center gap-3 rounded-[2px] px-3 py-2.5 text-sm transition-all ${
-                      isLocked
-                        ? "cursor-not-allowed text-steel/30"
-                        : isActive
-                        ? "bg-gold/15 text-gold"
-                        : "text-steel/70 hover:bg-paper/10 hover:text-paper"
-                    }`}
-                    onClick={(e) => isLocked && e.preventDefault()}
-                  >
-                    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-bold ${
-                      isActive
-                        ? "bg-gold text-ink"
-                        : isLocked
-                        ? "bg-steel/10 text-steel/30"
-                        : "bg-paper/10 text-steel/50 group-hover:bg-gold/20 group-hover:text-gold"
-                    }`}>
-                      {isLocked ? (
-                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
-                      ) : (
-                        String(stage.number).padStart(2, "0")
+                  return (
+                    <Link
+                      key={stage.id}
+                      href={isLocked ? "#" : stageHref}
+                      className={`group flex items-center gap-3 rounded-[2px] px-3 py-2.5 text-sm transition-all ${
+                        isLocked
+                          ? "cursor-not-allowed text-steel/30"
+                          : isActive
+                          ? "bg-gold/15 text-gold"
+                          : "text-steel/70 hover:bg-paper/10 hover:text-paper"
+                      }`}
+                      onClick={(e) => isLocked && e.preventDefault()}
+                    >
+                      <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-bold ${
+                        isActive
+                          ? "bg-gold text-ink"
+                          : isLocked
+                          ? "bg-steel/10 text-steel/30"
+                          : "bg-paper/10 text-steel/50 group-hover:bg-gold/20 group-hover:text-gold"
+                      }`}>
+                        {isLocked ? (
+                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                          </svg>
+                        ) : (
+                          String(stage.number).padStart(2, "0")
+                        )}
+                      </span>
+                      <span className="truncate font-medium">{stage.title}</span>
+                      {isActive && (
+                        <span aria-hidden="true" className="ml-auto h-1.5 w-1.5 rounded-full bg-gold" />
                       )}
-                    </span>
-                    <span className="truncate font-medium">{stage.title}</span>
-                    {isActive && (
-                      <span aria-hidden="true" className="ml-auto h-1.5 w-1.5 rounded-full bg-gold" />
-                    )}
-                  </Link>
-                );
-              })
-            )}
+                    </Link>
+                  );
+                })
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* AI Coach */}
+        {/* AI Coach — pour tous les rôles */}
         <div className="mt-4">
           <p className="mb-2 px-3 t-meta text-[0.625rem] uppercase tracking-widest text-steel/40">
             Assistant
@@ -255,27 +267,6 @@ export function SidebarNav({ role }: { role: ProfileRole }) {
               Pro
             </span>
           </Link>
-        </div>
-
-        {/* Coming soon */}
-        <div className="mt-4">
-          <p className="mb-2 px-3 t-meta text-[0.625rem] uppercase tracking-widest text-steel/30">
-            À venir
-          </p>
-          <div className="flex flex-col gap-0.5">
-            {COMING_SOON_LABELS.map((label) => (
-              <div
-                key={label}
-                className="flex items-center gap-3 rounded-[2px] px-3 py-2.5 text-sm text-steel/30"
-              >
-                <span className="h-1.5 w-1.5 rounded-full bg-steel/20" />
-                <span className="flex-1 font-medium">{label}</span>
-                <span className="t-meta rounded-[2px] border border-steel/15 px-1.5 py-0.5 text-[0.5625rem] text-steel/30">
-                  Bientôt
-                </span>
-              </div>
-            ))}
-          </div>
         </div>
       </nav>
 

@@ -41,7 +41,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "fr_FR",
-    url: "https://virtuosefunnel.com",
+    url: "https://virtuosefunnel.online",
     title: "Virtuose Funnel — Transformez votre audience en système de vente",
     description:
       "Virtuose Funnel est un programme d'accompagnement guidé pour construire, lancer et optimiser votre système d'acquisition et de conversion.",
@@ -63,7 +63,7 @@ export const metadata: Metadata = {
     images: ["/logo-virtuose-funnel.png"],
     creator: "@virtuosefunnel",
   },
-  metadataBase: new URL("https://virtuosefunnel.com"),
+  metadataBase: new URL("https://virtuosefunnel.online"),
   alternates: {
     canonical: "/",
   },

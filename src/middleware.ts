@@ -14,11 +14,34 @@ const APP_ROUTES = [
 ];
 
 // Routes d'authentification — accessibles à tous (même sans session)
-const AUTH_ROUTES = ["/login", "/signup"];
+const AUTH_ROUTES = ["/login", "/signup", "/mot-de-passe-oublie", "/reinitialiser-mot-de-passe"];
 
 // Page d'abonnement — accessible publiquement pour que les visiteurs
 // puissent voir les tarifs avant de s'inscrire
 const ABONNEMENT_ROUTES = ["/abonnement"];
+
+// Routes admin — uniquement pour les admins
+const ADMIN_ROUTES = ["/admin"];
+
+// Routes coach — uniquement pour les coachs
+const COACH_ROUTES = ["/coach"];
+
+/**
+ * Détermine la route de redirection après connexion selon le rôle
+ */
+async function getRedirectUrl(supabase: any, userId: string): Promise<string> {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, onboarding_completed")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const role = profile?.role;
+
+  if (role === "admin") return "/admin";
+  if (role === "coach") return "/coach";
+  return "/dashboard";
+}
 
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next({ request: { headers: request.headers } });
@@ -49,6 +72,8 @@ export async function middleware(request: NextRequest) {
   const isAppRoute = APP_ROUTES.some((route) => pathname.startsWith(route));
   const isAuthRoute = AUTH_ROUTES.some((route) => pathname.startsWith(route));
   const isAbonnement = pathname.startsWith("/abonnement");
+  const isAdminRoute = ADMIN_ROUTES.some((route) => pathname.startsWith(route));
+  const isCoachRoute = COACH_ROUTES.some((route) => pathname.startsWith(route));
 
   // 1. Si pas connecté et que la route nécessite une auth → redirectToLogin
   if (!user && isAppRoute && !isAbonnement) {
@@ -57,24 +82,27 @@ export async function middleware(request: NextRequest) {
 
   // 2. Si connecté et que la route est une route d'auth → rediriger vers dashboard
   if (user && isAuthRoute) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    const redirectUrl = await getRedirectUrl(supabase, user.id);
+    return NextResponse.redirect(new URL(redirectUrl, request.url));
   }
 
   // 3. Routes protégées (auth + onboarding + abonnement)
   if (user && isAppRoute && !isAbonnement) {
+    const isOnboarding = pathname.startsWith("/onboarding");
+    
     const { data: profile } = await supabase
       .from("profiles")
       .select("onboarding_completed, role")
       .eq("id", user.id)
       .maybeSingle();
 
-    // Onboarding requis
-    if (!profile || profile.onboarding_completed !== true) {
+    // Onboarding requis (sauf si déjà sur la page onboarding)
+    if (!isOnboarding && (!profile || profile.onboarding_completed !== true)) {
       return NextResponse.redirect(new URL("/onboarding", request.url));
     }
 
     // Abonnement requis uniquement pour les participants
-    if (profile.role === "participant") {
+    if (profile?.role === "participant") {
       const { data: activeSubscription } = await supabase
         .from("subscriptions")
         .select("id")
@@ -88,12 +116,23 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL("/abonnement", request.url));
       }
     }
+
+    // 4. Vérifications croisées par rôle
+    // Participant qui tente d'accéder à /admin ou /coach → redirect vers /dashboard
+    if (profile?.role === "participant") {
+      if (isAdminRoute || isCoachRoute) {
+        return NextResponse.redirect(new URL("/dashboard", request.url));
+      }
+    }
+
+    // Coach qui tente d'accéder à /admin → redirect vers /coach
+    if (profile?.role === "coach" && isAdminRoute) {
+      return NextResponse.redirect(new URL("/coach", request.url));
+    }
   }
 
-  // 4. Page abonnement accessible même sans auth (pour les visiteurs)
-  //    Mais si déjà connecté → pas besoin de protéger
+  // 5. Page abonnement accessible même sans auth (pour les visiteurs)
   if (isAbonnement && !user) {
-    // Retourner la page normalement (pas de redirection)
     return response;
   }
 
@@ -112,5 +151,7 @@ export const config = {
     "/coach-ai/:path*",
     "/login",
     "/signup",
+    "/mot-de-passe-oublie",
+    "/reinitialiser-mot-de-passe",
   ],
 };
