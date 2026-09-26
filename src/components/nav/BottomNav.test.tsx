@@ -6,19 +6,33 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/dashboard",
 }));
 
+vi.mock("@/components/notifications/NotificationBell", () => ({
+  NotificationBell: () => <div data-testid="notification-bell" />,
+}));
+
 describe("BottomNav", () => {
-  it("n'affiche pas Revue pour un participant", () => {
+  it("n'affiche pas Livrables pour un participant", () => {
     render(<BottomNav role="participant" />);
-    expect(screen.queryByRole("link", { name: "Revue" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Livrables" })).not.toBeInTheDocument();
   });
 
-  it("affiche Revue pour un coach", () => {
+  it("affiche Livrables pour un coach", () => {
     render(<BottomNav role="coach" />);
-    expect(screen.getByRole("link", { name: "Revue" })).toHaveAttribute("href", "/coach");
+    expect(screen.getByRole("link", { name: "Livrables" })).toHaveAttribute("href", "/coach");
   });
 
-  it("affiche Ressources", () => {
+  it("affiche Dashboard pour un admin", () => {
+    render(<BottomNav role="admin" />);
+    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/admin");
+  });
+
+  it("affiche Ressources pour un participant", () => {
     render(<BottomNav role="participant" />);
     expect(screen.getByRole("link", { name: "Ressources" })).toHaveAttribute("href", "/ressources");
+  });
+
+  it("n'affiche pas Members pour un participant", () => {
+    render(<BottomNav role="participant" />);
+    expect(screen.queryByRole("link", { name: "Membres" })).not.toBeInTheDocument();
   });
 });

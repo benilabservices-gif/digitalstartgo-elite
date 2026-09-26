@@ -1,110 +1,126 @@
 /**
  * Tests pour le middleware — redirections par rôle
  */
-import { middleware } from "@/middleware";
-import { NextRequest } from "next/server";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock Supabase client
-const mockSupabase = {
-  auth: {
-    getUser: jest.fn(),
-  },
-  from: jest.fn(() => ({
-    select: jest.fn(() => ({
-      eq: jest.fn(() => ({
-        maybeSingle: jest.fn(),
-        single: jest.fn(),
-      })),
-      order: jest.fn(),
-      limit: jest.fn(),
-      gt: jest.fn(),
-    })),
-    rpc: jest.fn(),
-  })),
-};
-
-jest.mock("@/lib/supabase/server", () => ({
-  createClient: jest.fn(() => mockSupabase),
-}));
-
-// Mock NextResponse
-const mockRedirect = jest.fn((url: string) => ({ url }));
-jest.mock("next/server", () => ({
+// Mock NextResponse and NextRequest BEFORE importing middleware
+const mockRedirect = vi.fn();
+vi.mock("next/server", () => ({
   NextResponse: {
-    next: jest.fn(() => ({
+    next: vi.fn(() => ({
       cookies: {
-        get: jest.fn(),
-        set: jest.fn(),
-        delete: jest.fn(),
+        get: vi.fn(),
+        set: vi.fn(),
+        delete: vi.fn(),
       },
     })),
-    redirect: mockRedirect,
+    redirect: (...args: any[]) => mockRedirect(...args),
   },
   NextRequest: class {
     url: string;
     nextUrl: { pathname: string };
     headers: Map<string, string>;
-    cookies: { get: jest.Mock };
+    cookies: { get: ReturnType<typeof vi.fn> };
 
     constructor(url: string) {
       this.url = url;
       this.nextUrl = { pathname: new URL(url).pathname };
       this.headers = new Map();
-      this.cookies = { get: jest.fn() };
+      this.cookies = { get: vi.fn() };
     }
   },
 }));
 
+// Track from() call count
+let fromCallCount = 0;
+
+// Mock Supabase SSR client
+const mockSupabaseClient = {
+  auth: {
+    getUser: vi.fn(),
+  },
+  from: vi.fn((table: string) => {
+    fromCallCount++;
+    const callNum = fromCallCount;
+    
+    // Return a chainable query object
+    const query = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      gt: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockImplementation(async () => {
+        // Return different data based on call number
+        if (callNum === 1) {
+          // First from() call - getRedirectUrl or initial profile check
+          return { data: { role: "admin", onboarding_completed: true }, error: null };
+        }
+        // Second from() call - middleware profile check
+        return { data: { role: "admin", onboarding_completed: true }, error: null };
+      }),
+      single: vi.fn(),
+    };
+    return query;
+  }),
+};
+
+vi.mock("@supabase/ssr", () => ({
+  createServerClient: vi.fn(() => mockSupabaseClient),
+}));
+
+const { middleware } = await import("@/middleware");
+
 describe("Middleware — Redirections par rôle", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
+    fromCallCount = 0;
   });
+
+  function setupMocks(userRole: string, onboardingCompleted: boolean, hasSubscription = true) {
+    mockSupabaseClient.auth.getUser.mockResolvedValue({
+      data: { user: { id: `${userRole}-id` } },
+      error: null,
+    });
+    
+    // Override the maybeSingle to return role-specific data
+    const query = mockSupabaseClient.from("profiles");
+    query.maybeSingle.mockImplementation(async () => ({
+      data: { role: userRole, onboarding_completed: onboardingCompleted },
+      error: null,
+    }));
+    
+    // Also mock subscription check for participants
+    const subQuery = mockSupabaseClient.from("subscriptions");
+    subQuery.maybeSingle.mockImplementation(async () => 
+      hasSubscription ? { data: { id: "sub-1" }, error: null } : { data: null, error: null }
+    );
+  }
 
   describe("Redirection après connexion", () => {
     it("doit rediriger un admin vers /admin après login", async () => {
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: { id: "admin-id" } },
-        error: null,
-      });
-      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
-        data: { role: "admin", onboarding_completed: true },
-        error: null,
-      });
-
-      const request = new NextRequest("http://localhost/login");
-      const response = await middleware(request);
+      setupMocks("admin", true);
+      
+      const request = new (await import("next/server")).NextRequest("http://localhost/login");
+      await middleware(request as any);
 
       expect(mockRedirect).toHaveBeenCalledWith(expect.objectContaining({ pathname: "/admin" }));
     });
 
     it("doit rediriger un coach vers /coach après login", async () => {
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: { id: "coach-id" } },
-        error: null,
-      });
-      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
-        data: { role: "coach", onboarding_completed: true },
-        error: null,
-      });
-
-      const request = new NextRequest("http://localhost/login");
-      const response = await middleware(request);
+      setupMocks("coach", true);
+      
+      const request = new (await import("next/server")).NextRequest("http://localhost/login");
+      await middleware(request as any);
 
       expect(mockRedirect).toHaveBeenCalledWith(expect.objectContaining({ pathname: "/coach" }));
     });
 
     it("doit rediriger un participant vers /dashboard après login", async () => {
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: { id: "participant-id" } },
-        error: null,
-      });
-      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
-        data: { role: "participant", onboarding_completed: true },
-        error: null,
-      });
-
-      const request = new NextRequest("http://localhost/login");
-      const response = await middleware(request);
+      setupMocks("participant", true);
+      
+      const request = new (await import("next/server")).NextRequest("http://localhost/login");
+      await middleware(request as any);
 
       expect(mockRedirect).toHaveBeenCalledWith(expect.objectContaining({ pathname: "/dashboard" }));
     });
@@ -112,33 +128,19 @@ describe("Middleware — Redirections par rôle", () => {
 
   describe("Redirection par rôle sur /dashboard", () => {
     it("doit rediriger un admin de /dashboard vers /admin", async () => {
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: { id: "admin-id" } },
-        error: null,
-      });
-      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
-        data: { role: "admin", onboarding_completed: true },
-        error: null,
-      });
-
-      const request = new NextRequest("http://localhost/dashboard");
-      const response = await middleware(request);
+      setupMocks("admin", true);
+      
+      const request = new (await import("next/server")).NextRequest("http://localhost/dashboard");
+      await middleware(request as any);
 
       expect(mockRedirect).toHaveBeenCalledWith(expect.objectContaining({ pathname: "/admin" }));
     });
 
     it("doit rediriger un coach de /dashboard vers /coach", async () => {
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: { id: "coach-id" } },
-        error: null,
-      });
-      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
-        data: { role: "coach", onboarding_completed: true },
-        error: null,
-      });
-
-      const request = new NextRequest("http://localhost/dashboard");
-      const response = await middleware(request);
+      setupMocks("coach", true);
+      
+      const request = new (await import("next/server")).NextRequest("http://localhost/dashboard");
+      await middleware(request as any);
 
       expect(mockRedirect).toHaveBeenCalledWith(expect.objectContaining({ pathname: "/coach" }));
     });
@@ -146,53 +148,28 @@ describe("Middleware — Redirections par rôle", () => {
 
   describe("Blocage d'accès cross-rôle", () => {
     it("doit rediriger un participant qui accède à /admin vers /dashboard", async () => {
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: { id: "participant-id" } },
-        error: null,
-      });
-      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
-        data: { role: "participant", onboarding_completed: true },
-        error: null,
-      });
-      mockSupabase.from().select().eq().gt().limit().maybeSingle.mockResolvedValue({
-        data: { id: "sub-1" },
-        error: null,
-      });
-
-      const request = new NextRequest("http://localhost/admin");
-      const response = await middleware(request);
+      setupMocks("participant", true);
+      
+      const request = new (await import("next/server")).NextRequest("http://localhost/admin");
+      await middleware(request as any);
 
       expect(mockRedirect).toHaveBeenCalledWith(expect.objectContaining({ pathname: "/dashboard" }));
     });
 
     it("doit rediriger un coach qui accède à /admin vers /coach", async () => {
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: { id: "coach-id" } },
-        error: null,
-      });
-      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
-        data: { role: "coach", onboarding_completed: true },
-        error: null,
-      });
-
-      const request = new NextRequest("http://localhost/admin");
-      const response = await middleware(request);
+      setupMocks("coach", true);
+      
+      const request = new (await import("next/server")).NextRequest("http://localhost/admin");
+      await middleware(request as any);
 
       expect(mockRedirect).toHaveBeenCalledWith(expect.objectContaining({ pathname: "/coach" }));
     });
 
     it("doit laisser un admin accéder à /admin", async () => {
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: { id: "admin-id" } },
-        error: null,
-      });
-      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
-        data: { role: "admin", onboarding_completed: true },
-        error: null,
-      });
-
-      const request = new NextRequest("http://localhost/admin");
-      const response = await middleware(request);
+      setupMocks("admin", true);
+      
+      const request = new (await import("next/server")).NextRequest("http://localhost/admin");
+      await middleware(request as any);
 
       // Ne doit pas rediriger
       expect(mockRedirect).not.toHaveBeenCalled();
@@ -201,50 +178,29 @@ describe("Middleware — Redirections par rôle", () => {
 
   describe("Onboarding et abonnement", () => {
     it("doit rediriger un participant non-onboardé vers /onboarding", async () => {
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: { id: "participant-id" } },
-        error: null,
-      });
-      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
-        data: { role: "participant", onboarding_completed: false },
-        error: null,
-      });
-
-      const request = new NextRequest("http://localhost/dashboard");
-      const response = await middleware(request);
+      setupMocks("participant", false);
+      
+      const request = new (await import("next/server")).NextRequest("http://localhost/dashboard");
+      await middleware(request as any);
 
       expect(mockRedirect).toHaveBeenCalledWith(expect.objectContaining({ pathname: "/onboarding" }));
     });
 
     it("ne doit pas exiger l'onboarding pour un admin", async () => {
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: { id: "admin-id" } },
-        error: null,
-      });
-      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
-        data: { role: "admin", onboarding_completed: false },
-        error: null,
-      });
-
-      const request = new NextRequest("http://localhost/admin");
-      const response = await middleware(request);
+      setupMocks("admin", false);
+      
+      const request = new (await import("next/server")).NextRequest("http://localhost/admin");
+      await middleware(request as any);
 
       // Ne doit pas rediriger vers onboarding
       expect(mockRedirect).not.toHaveBeenCalledWith(expect.objectContaining({ pathname: "/onboarding" }));
     });
 
     it("ne doit pas exiger l'abonnement pour un coach", async () => {
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: { id: "coach-id" } },
-        error: null,
-      });
-      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
-        data: { role: "coach", onboarding_completed: true },
-        error: null,
-      });
-
-      const request = new NextRequest("http://localhost/coach");
-      const response = await middleware(request);
+      setupMocks("coach", true);
+      
+      const request = new (await import("next/server")).NextRequest("http://localhost/coach");
+      await middleware(request as any);
 
       // Ne doit pas rediriger vers abonnement
       expect(mockRedirect).not.toHaveBeenCalledWith(expect.objectContaining({ pathname: "/abonnement" }));

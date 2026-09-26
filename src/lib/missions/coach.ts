@@ -23,7 +23,7 @@ export async function requireCoach() {
     .eq("id", user.id)
     .maybeSingle();
 
-  if (profile?.role !== "coach") {
+  if (profile?.role !== "coach" && profile?.role !== "admin") {
     redirect("/dashboard");
   }
 

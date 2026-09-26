@@ -50,6 +50,11 @@ begin
     raise exception 'Cannot remove your own admin role';
   end if;
   
+  -- Refuser tout rôle autre que participant, coach ou admin
+  if p_new_role not in ('participant', 'coach', 'admin') then
+    raise exception 'Invalid role: must be participant, coach, or admin';
+  end if;
+  
   -- Mettre à jour le rôle
   update profiles
   set role = p_new_role,
@@ -84,7 +89,7 @@ begin
   return query
   select
     p.id,
-    au.email,
+    au.email::text,
     p.full_name,
     p.business_name,
     p.role,
@@ -99,7 +104,50 @@ begin
 end;
 $$;
 
--- 4. Révoquer l'accès public aux fonctions sensibles
+-- 4. Mettre à jour prevent_role_self_update pour autoriser les admins
+create or replace function public.prevent_role_self_update()
+returns trigger
+language plpgsql
+security invoker
+set search_path = public, pg_temp
+as $$
+begin
+  if auth.uid() is null then
+    return new;
+  end if;
+
+  -- Autoriser les admins à modifier les rôles via change_user_role
+  if public.is_admin() then
+    return new;
+  end if;
+
+  if tg_op = 'INSERT' then
+    if new.role is distinct from 'participant' then
+      raise exception 'Le rôle ne peut pas être défini depuis l''application.';
+    end if;
+  elsif new.role is distinct from old.role then
+    raise exception 'Le rôle ne peut pas être modifié depuis l''application.';
+  end if;
+
+  return new;
+end;
+$$;
+
+-- 5. Mettre à jour coach_participant_names pour accepter les admins
+create or replace function public.coach_participant_names(p_profile_ids uuid[])
+returns table (id uuid, business_name text)
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select p.id, p.business_name
+  from public.profiles p
+  where (public.is_coach() or public.is_admin())
+    and p.id = any(p_profile_ids);
+$$;
+
+-- 6. Révoquer l'accès public aux fonctions sensibles
 revoke execute on function public.is_admin() from public, anon;
 grant execute on function public.is_admin() to authenticated;
 
@@ -109,12 +157,12 @@ grant execute on function public.change_user_role(uuid, text) to authenticated;
 revoke execute on function public.admin_list_members() from public, anon;
 grant execute on function public.admin_list_members() to authenticated;
 
--- 5. Politiques RLS pour mission_submissions — permitir aux admins de tout voir
+-- 7. Politiques RLS pour mission_submissions — permitir aux admins de tout voir
 drop policy if exists "admins_manage_submissions" on mission_submissions;
 create policy "admins_manage_submissions" on mission_submissions
-  for all using (public.is_admin());
+  for all to authenticated using (public.is_admin());
 
--- 6. Politiques RLS pour mission_progress — permitir aux admins de tout voir
+-- 8. Politiques RLS pour mission_progress — permettent aux admins de tout voir
 drop policy if exists "admins_manage_progress" on mission_progress;
 create policy "admins_manage_progress" on mission_progress
-  for all using (public.is_admin());
+  for all to authenticated using (public.is_admin());

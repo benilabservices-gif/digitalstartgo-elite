@@ -26,8 +26,8 @@ export default async function CoachParticipantsPage() {
     .select("cohort_id, cohort(id, name)")
     .eq("coach_id", user?.id);
 
-  const cohortIds = (coachCohorts ?? []).map((c) => c.cohort_id);
-  const cohortMap = new Map((coachCohorts ?? []).map((c) => [c.cohort.id, c.cohort.name]));
+  const cohortIds = (coachCohorts ?? []).map((c: any) => c.cohort_id);
+  const cohortMap = new Map((coachCohorts ?? []).map((c: any) => [c.cohort.id, c.cohort.name]));
 
   if (cohortIds.length === 0) {
     return (
@@ -48,7 +48,7 @@ export default async function CoachParticipantsPage() {
           <Users className="mx-auto mb-4 h-12 w-12 text-secondary/30" />
           <p className="text-lg font-semibold text-dark">Aucun participant</p>
           <p className="mt-1 text-sm text-secondary">
-            Vous n'êtes pas encore rattaché à une cohorte.
+            Vous n&apos;êtes pas encore rattaché à une cohorte.
           </p>
         </PremiumCard>
       </div>
@@ -123,7 +123,7 @@ export default async function CoachParticipantsPage() {
         {rows.length === 0 ? (
           <div className="py-8 text-center">
             <Users className="mx-auto mb-3 h-8 w-8 text-secondary/30" />
-            <p className="text-sm text-secondary">Aucun participant pour l'instant.</p>
+            <p className="text-sm text-secondary">Aucun participant pour l&apos;instant.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">

@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/cohorts/admin";
 import { PremiumCard } from "@/components/app-ui/PremiumCard";
 import { Badge } from "@/components/ui/Badge";
 import { Users, CheckCircle2, XCircle } from "lucide-react";
+import { MemberRoleSelector } from "@/components/admin/MemberRoleSelector";
 
 export default async function AdminMembresPage() {
   const { supabase } = await requireAdmin();
@@ -49,7 +50,7 @@ export default async function AdminMembresPage() {
         {rows.length === 0 ? (
           <div className="py-8 text-center">
             <Users className="mx-auto mb-3 h-8 w-8 text-secondary/30" />
-            <p className="text-sm text-secondary">Aucun membre pour l'instant.</p>
+            <p className="text-sm text-secondary">Aucun membre pour l&apos;instant.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -79,9 +80,7 @@ export default async function AdminMembresPage() {
                       </div>
                     </td>
                     <td className="py-3 pr-4">
-                      <Badge tone={row.role === "admin" ? "danger" : row.role === "coach" ? "warning" : "default"}>
-                        {row.role || "participant"}
-                      </Badge>
+                      <MemberRoleSelector memberId={row.id} currentRole={row.role} />
                     </td>
                     <td className="py-3 pr-4 text-secondary">
                       {row.cohort_id ? (cohortMap.get(row.cohort_id) ?? "—") : "—"}

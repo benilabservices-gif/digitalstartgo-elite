@@ -7,6 +7,7 @@ import { Inbox, Clock, CheckCircle2, XCircle } from "lucide-react";
 interface PendingSubmissionRow {
   id: string;
   created_at: string;
+  statut: string;
   mission_progress: {
     profile_id: string;
     missions: { number: number; title: string } | null;

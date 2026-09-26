@@ -64,9 +64,9 @@ export default async function AdminOverviewPage() {
     <div className="mx-auto max-w-4xl px-6 py-10 pb-24 sm:pb-10">
       <div className="mb-8">
         <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-ochre">Administration</p>
-        <h1 className="t-display-mid text-[clamp(1.5rem,4vw,2.25rem)] text-dark">Vue d'ensemble</h1>
+        <h1 className="t-display-mid text-[clamp(1.5rem,4vw,2.25rem)] text-dark">Vue d&apos;ensemble</h1>
         <p className="mt-2 text-secondary">
-          Supervisez l'ensemble de la plateforme et gérez les comptes.
+          Supervisez l&apos;ensemble de la plateforme et gérez les comptes.
         </p>
       </div>
 
