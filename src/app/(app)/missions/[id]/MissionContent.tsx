@@ -52,32 +52,6 @@ export default function MissionContent({
   const [lastFeedback, setLastFeedback] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
-  // Locked state — show lock message instead of form
-  if (lockState.locked) {
-    return (
-      <div className="mx-auto max-w-3xl px-6 py-10 pb-24 sm:pb-10">
-        <Link href="/dashboard" className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-ochre hover:underline">
-          <ArrowLeft className="h-4 w-4" />
-          Retour au dashboard
-        </Link>
-        <PremiumCard className="text-center py-12 border-l-[3px] border-l-error">
-          <Lock className="mx-auto mb-4 h-12 w-12 text-error" />
-          <h2 className="t-display-mid text-xl text-dark">
-            {lockState.reason ?? "Étape verrouillée"}
-          </h2>
-          {lockState.linkHref && (
-            <Link
-              href={lockState.linkHref}
-              className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-ochre hover:underline"
-            >
-              Continuer →
-            </Link>
-          )}
-        </PremiumCard>
-      </div>
-    );
-  }
-
   useEffect(() => {
     async function init() {
       const supabase = createClient();
@@ -108,6 +82,32 @@ export default function MissionContent({
     }
     init();
   }, [mission.id, user.id]);
+
+  // Locked state — show lock message instead of form (after all hooks)
+  if (lockState.locked) {
+    return (
+      <div className="mx-auto max-w-3xl px-6 py-10 pb-24 sm:pb-10">
+        <Link href="/dashboard" className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-ochre hover:underline">
+          <ArrowLeft className="h-4 w-4" />
+          Retour au dashboard
+        </Link>
+        <PremiumCard className="text-center py-12 border-l-[3px] border-l-error">
+          <Lock className="mx-auto mb-4 h-12 w-12 text-error" />
+          <h2 className="t-display-mid text-xl text-dark">
+            {lockState.reason ?? "Étape verrouillée"}
+          </h2>
+          {lockState.linkHref && (
+            <Link
+              href={lockState.linkHref}
+              className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-ochre hover:underline"
+            >
+              Continuer →
+            </Link>
+          )}
+        </PremiumCard>
+      </div>
+    );
+  }
 
   if (submitted) {
     return (
