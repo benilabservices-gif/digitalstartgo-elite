@@ -7,6 +7,7 @@ import type { ProfileRole } from "@/lib/profile/role";
 import { SigneVirtuose } from "@/components/marketing/LogoVirtuose";
 import { useEffect, useState } from "react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { signOut } from "@/lib/auth/signout";
 
 interface Stage {
   id: string;
@@ -139,8 +140,7 @@ export function SidebarNav({ role }: { role: ProfileRole }) {
   }
 
   async function handleSignOut() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    await signOut();
     router.push("/login");
     router.refresh();
   }
