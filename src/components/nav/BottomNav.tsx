@@ -1,10 +1,11 @@
 "use client";
 
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ProfileRole } from "@/lib/profile/role";
-import { SigneVirtuose } from "@/components/marketing/LogoVirtuose";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { signOut } from "@/lib/auth/signout";
 
 interface NavLinkItem {
   href: string;
@@ -25,11 +26,17 @@ const COACH_ITEMS: NavLinkItem[] = [
   { href: "/coach/participants", label: "Participants", icon: "users" },
 ];
 
-// Menu admin
-const ADMIN_ITEMS: NavLinkItem[] = [
+// Menu admin — items principaux (barre du bas)
+const ADMIN_MAIN_ITEMS: NavLinkItem[] = [
   { href: "/admin", label: "Dashboard", icon: "home" },
   { href: "/admin/membres", label: "Membres", icon: "users" },
   { href: "/admin/livrables", label: "Livrables", icon: "review" },
+];
+
+// Menu admin — items secondaires (panneau "Plus")
+const ADMIN_MORE_ITEMS: NavLinkItem[] = [
+  { href: "/admin/cohorts", label: "Cohortes", icon: "users" },
+  { href: "/admin/abonnements", label: "Abonnements", icon: "credit" },
 ];
 
 function NavIcon({ name }: { name: string }) {
@@ -59,22 +66,120 @@ function NavIcon({ name }: { name: string }) {
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
       </svg>
     ),
-    bot: (
+    credit: (
       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+      </svg>
+    ),
+    more: (
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
       </svg>
     ),
   };
   return icons[name] ?? null;
 }
 
+interface MorePanelProps {
+  isOpen: boolean;
+  onClose: () => void;
+  role: ProfileRole;
+}
+
+function MorePanel({ isOpen, onClose, role }: MorePanelProps) {
+  const pathname = usePathname();
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Fermer en cliquant en dehors
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    }
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  // Items secondaires selon le rôle
+  const moreItems: NavLinkItem[] = role === "admin" ? ADMIN_MORE_ITEMS : [];
+
+  async function handleSignOut() {
+    await signOut();
+    window.location.href = "/login";
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:hidden" onClick={onClose}>
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-black/50" aria-hidden="true" />
+
+      {/* Panel */}
+      <div
+        ref={panelRef}
+        className="relative w-full bg-ink border-t border-paper/20 px-6 pb-safe pt-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mx-auto flex max-w-md flex-col gap-3 pb-4">
+          {/* Handle */}
+          <div className="mx-auto mb-2 h-1 w-8 rounded-full bg-paper/30" />
+
+          {/* More links */}
+          {moreItems.map((item) => {
+            const isActive = item.href === "/admin"
+              ? pathname === "/admin"
+              : pathname === item.href || pathname.startsWith(item.href + "/");
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onClose}
+                className={`flex items-center gap-3 rounded-[2px] px-4 py-3 text-sm transition-colors ${
+                  isActive
+                    ? "bg-gold/15 text-gold"
+                    : "text-steel/70 hover:bg-paper/10 hover:text-paper"
+                }`}
+              >
+                <NavIcon name={item.icon} />
+                <span className="font-medium">{item.label}</span>
+              </Link>
+            );
+          })}
+
+          {/* Divider */}
+          {moreItems.length > 0 && (
+            <div className="border-t border-paper/10" />
+          )}
+
+          {/* Sign out */}
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="flex w-full items-center gap-3 rounded-[2px] px-4 py-3 text-sm text-error hover:bg-error/10"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            <span className="font-medium">Se déconnecter</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function BottomNav({ role }: { role: ProfileRole }) {
   const pathname = usePathname();
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
 
   // Déterminer les items du menu selon le rôle
   let items: NavLinkItem[] = [];
   if (role === "admin") {
-    items = ADMIN_ITEMS;
+    items = ADMIN_MAIN_ITEMS;
   } else if (role === "coach") {
     items = COACH_ITEMS;
   } else {
@@ -83,31 +188,46 @@ export function BottomNav({ role }: { role: ProfileRole }) {
   }
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 flex items-center border-t border-paper/20 bg-ink/95 backdrop-blur-lg sm:hidden">
-      <div className="flex flex-1 items-stretch">
-        {items.map((item) => {
-          // Pour /admin, actif uniquement sur la racine exacte
-          const isActive = item.href === "/admin"
-            ? pathname === "/admin"
-            : pathname === item.href || pathname.startsWith(item.href + "/");
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex flex-1 flex-col items-center justify-center gap-1 py-3 transition-colors ${
-                isActive ? "text-gold" : "text-steel/60"
-              }`}
-            >
-              <NavIcon name={item.icon} />
-              <span className="text-[0.625rem] font-medium">{item.label}</span>
-              {isActive && (
-                <span aria-hidden="true" className="mt-0.5 h-0.5 w-6 rounded-full bg-gold" />
-              )}
-            </Link>
-          );
-        })}
-      </div>
-      <NotificationBell />
-    </nav>
+    <>
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex items-center border-t border-paper/20 bg-ink/95 backdrop-blur-lg sm:hidden">
+        <div className="flex flex-1 items-stretch">
+          {items.map((item) => {
+            const isActive = item.href === "/admin"
+              ? pathname === "/admin"
+              : pathname === item.href || pathname.startsWith(item.href + "/");
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex flex-1 flex-col items-center justify-center gap-1 py-3 transition-colors ${
+                  isActive ? "text-gold" : "text-steel/60"
+                }`}
+              >
+                <NavIcon name={item.icon} />
+                <span className="text-[0.625rem] font-medium">{item.label}</span>
+                {isActive && (
+                  <span aria-hidden="true" className="mt-0.5 h-0.5 w-6 rounded-full bg-gold" />
+                )}
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Bouton Plus */}
+        <button
+          type="button"
+          onClick={() => setIsMoreOpen(true)}
+          className="flex flex-1 flex-col items-center justify-center gap-1 py-3 text-steel/60 transition-colors hover:text-paper"
+          aria-label="Plus d'options"
+        >
+          <NavIcon name="more" />
+          <span className="text-[0.625rem] font-medium">Plus</span>
+        </button>
+
+        <NotificationBell />
+      </nav>
+
+      <MorePanel isOpen={isMoreOpen} onClose={() => setIsMoreOpen(false)} role={role} />
+    </>
   );
 }
