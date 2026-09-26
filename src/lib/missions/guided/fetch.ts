@@ -84,7 +84,8 @@ export function replacePromptVariables(
   return prompt.replace(/\{\{([^}]+)\}\}/g, (_match, varName) => {
     const parts = varName.split(".");
     if (parts.length >= 2) {
-      const missionCode = parts[0];
+      // Le code de mission contient lui-même un point ("2.1") : tout sauf le dernier segment.
+      const missionCode = parts.slice(0, -1).join(".");
       const cle = parts[parts.length - 1];
       const missionReponses = promptVariableMap[missionCode];
       if (missionReponses) {

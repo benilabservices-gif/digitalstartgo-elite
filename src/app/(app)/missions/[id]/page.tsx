@@ -83,7 +83,7 @@ export default async function MissionPage({ params }: { params: { id: string } }
   // Fetch all stages with their missions for lock checks
   const { data: stages } = await supabase
     .from("stages")
-    .select("id, number, title, missions(id, code, number, order_index, titre, objective, estimated_duration_minutes, ordre, active, pourquoi, exemple_avant, exemple_apres, champs, criteres, guide_outil, prompts_ia, bonus_elite)")
+    .select("id, number, title, missions(id, code, number, order_index, title, objective, estimated_duration_minutes, ordre, active, pourquoi, exemple_avant, exemple_apres, champs, criteres, guide_outil, prompts_ia, bonus_elite)")
     .order("order_index");
 
   // Fetch user's progress for all missions
