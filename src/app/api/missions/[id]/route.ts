@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const missionId = searchParams.get("id");
+export async function GET(request: Request, { params }: { params: { id: string } }) {
+  const missionId = params.id;
 
   if (!missionId) {
     return NextResponse.json({ error: "Mission ID requis" }, { status: 400 });
@@ -20,6 +19,7 @@ export async function GET(request: Request) {
       title,
       objective,
       estimated_duration_minutes,
+      stage_id,
       stages(number, title)
     `)
     .eq("id", missionId)
@@ -29,7 +29,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ notFound: true }, { status: 404 });
   }
 
-  // Get user
+  // Get user from session
   const {
     data: { user },
   } = await supabase.auth.getUser();
