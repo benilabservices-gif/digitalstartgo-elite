@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PremiumCard, StatBadge } from "@/components/app-ui/PremiumCard";
 import { Badge } from "@/components/ui/Badge";
+import { isStageLocked, isStageValidated } from "@/lib/missions/stage-lock";
 import {
   MISSION_STATUS_LABELS,
   MISSION_STATUS_TONE,
@@ -83,33 +84,29 @@ export default async function StagePage({ params }: { params: { slug: string } }
   const stage = stageData as unknown as StageRow;
   const stageNum = stage.number;
 
-  // Lock logic: check ALL previous stages
-  let isLocked = false;
-  if (stageNum > 1) {
-    const { data: prevStagesData } = await supabase
-      .from("stages")
-      .select("missions(id)")
-      .lt("number", stageNum)
-      .order("number", { ascending: true });
-
-    const allPrevMissionIds = ((prevStagesData ?? []) as any[]).flatMap((s) => (s.missions ?? []).map((m: any) => m.id));
-    if (allPrevMissionIds.length > 0) {
-      const { data: prevProgress } = await supabase
-        .from("mission_progress")
-        .select("mission_id, status")
-        .in("mission_id", allPrevMissionIds);
-
-      const prevMap = new Map((prevProgress ?? []).map((p: any) => [p.mission_id, p.status]));
-      isLocked = !allPrevMissionIds.every((mid) => prevMap.get(mid) === "valide");
-    }
-  }
-
   const { data: progressRows } = await supabase
     .from("mission_progress")
     .select("id, mission_id, status")
     .eq("profile_id", user.id);
 
   const progressByMission = new Map((progressRows ?? []).map((row: any) => [row.mission_id, row.status]));
+
+  // Lock logic: check ALL previous stages per-stage rule
+  // A stage is validated if (all its active missions validated) OR (any inactive mission validated)
+  let isLocked = false;
+  if (stageNum > 1) {
+    const { data: prevStagesData } = await supabase
+      .from("stages")
+      .select("missions(id, active)")
+      .lt("number", stageNum)
+      .order("number", { ascending: true });
+
+    const prevMap = new Map((progressRows ?? []).map((p: any) => [p.mission_id, p.status]));
+    isLocked = !(prevStagesData ?? []).every((s: any) => {
+      const missions = (s.missions ?? []) as Array<{ id: string; active: boolean }>;
+      return isStageValidated(missions, prevMap);
+    });
+  }
 
   // Get submissions for each mission
   const submissionsByMission = new Map<string, SubmissionRow>();
@@ -127,7 +124,10 @@ export default async function StagePage({ params }: { params: { slug: string } }
     }
   }
 
-  const allValidated = stage.missions.length > 0 && stage.missions.every((m) => progressByMission.get(m.id) === "valide");
+  const allValidated = stage.missions.length > 0 && isStageValidated(
+    stage.missions.map((m: any) => ({ id: m.id, active: m.active })),
+    progressByMission
+  );
 
   // Find next stage
   const { data: nextStageData } = await supabase
