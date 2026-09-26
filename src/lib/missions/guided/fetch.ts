@@ -32,6 +32,8 @@ function buildMissionData(data: any): MissionData {
     id: data.id,
     code: data.code ?? String(data.number),
     number: data.number,
+    active: data.active ?? true,
+    ordre: data.ordre ?? 1,
     title: data.title,
     objective: data.objective ?? "",
     estimated_duration_minutes: data.estimated_duration_minutes ?? 30,
@@ -71,14 +73,28 @@ export async function fetchLastValidatedSubmission(missionId: string, profileId:
 
 /**
  * Remplace les variables {{code.champ}} dans un prompt par les réponses du participant.
+ * Si une variable référence une autre mission (ex: {{2.1.promesse}}), utilise
+ * promptVariableMap pour récupérer les réponses validées de cette mission.
  */
 export function replacePromptVariables(
   prompt: string,
-  reponses: Record<string, string | string[]>
+  reponses: Record<string, string | string[]>,
+  promptVariableMap: Record<string, Record<string, string | string[]>> = {}
 ): string {
   return prompt.replace(/\{\{([^}]+)\}\}/g, (_match, varName) => {
-    // varName est du type "2.1.promesse" → on extrait la cle après le dernier point
     const parts = varName.split(".");
+    if (parts.length >= 2) {
+      const missionCode = parts[0];
+      const cle = parts[parts.length - 1];
+      const missionReponses = promptVariableMap[missionCode];
+      if (missionReponses) {
+        const val = missionReponses[cle];
+        if (val === undefined) return "[à compléter]";
+        if (Array.isArray(val)) return val.join("\n• ");
+        return String(val);
+      }
+    }
+    // Variable sans code de mission → cherche dans les réponses actuelles
     const cle = parts[parts.length - 1];
     const val = reponses[cle];
     if (val === undefined) return "[à compléter]";

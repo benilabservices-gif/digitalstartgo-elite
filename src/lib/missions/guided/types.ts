@@ -15,6 +15,8 @@ export interface MissionData {
   id: string;
   code: string;
   number: number;
+  active?: boolean;
+  ordre?: number;
   title: string;
   objective: string;
   estimated_duration_minutes: number;

@@ -1,673 +1,216 @@
-"use client";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { isStageValidated, getNextMissionId } from "@/lib/missions/stage-lock";
+import MissionContent from "./MissionContent";
+import type { MissionData } from "@/lib/missions/guided/types";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import { PremiumCard } from "@/components/app-ui/PremiumCard";
-import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
-import {
-  fetchMission,
-  fetchMissionByCode,
-  fetchLastValidatedSubmission,
-  replacePromptVariables,
-} from "@/lib/missions/guided/fetch";
-import type { MissionData, MissionChamp } from "@/lib/missions/guided/types";
-import { formatContenu } from "@/lib/missions/guided/types";
-import {
-  ArrowLeft,
-  Clock,
-  AlertCircle,
-  CheckCircle2,
-  XCircle,
-  Copy,
-  FileText,
-  Play,
-} from "lucide-react";
-
-function ChampInput({
-  champ,
-  value,
-  onChange,
-}: {
-  champ: MissionChamp;
-  value: string | string[];
-  onChange: (val: string | string[]) => void;
-}) {
-  const baseClass =
-    "w-full rounded-[2px] border border-dark/10 bg-paper px-3 py-2 text-sm text-dark placeholder:text-secondary/40 focus:border-gold/60 focus:outline-none";
-
-  if (champ.type === "texte_long") {
-    return (
-      <textarea
-        className={baseClass}
-        rows={champ.max_lignes ?? 4}
-        value={Array.isArray(value) ? value.join("\n") : (value ?? "")}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={champ.aide ? champ.aide : undefined}
-      />
-    );
-  }
-
-  if (champ.type === "liste") {
-    const lines = Array.isArray(value) ? value : value ? [value] : [];
-    return (
-      <div className="flex flex-col gap-2">
-        {lines.map((line, i) => (
-          <div key={i} className="flex gap-2">
-            <input
-              className={`${baseClass} flex-1`}
-              value={line}
-              onChange={(e) => {
-                const next = [...lines];
-                next[i] = e.target.value;
-                onChange(next);
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => onChange(lines.filter((_, j) => j !== i))}
-              className="shrink-0 rounded-[2px] border border-dark/10 px-2 text-secondary hover:border-error/40 hover:text-error"
-              aria-label="Supprimer cette ligne"
-            >
-              <XCircle className="h-4 w-4" />
-            </button>
-          </div>
-        ))}
-        {lines.length !== (champ.max_lignes ?? 999) && (
-          <button
-            type="button"
-            onClick={() => onChange([...lines, ""])}
-            className="text-xs text-ochre hover:underline"
-          >
-            + Ajouter une ligne
-          </button>
-        )}
-      </div>
-    );
-  }
-
-  if (champ.type === "choix" && champ.options) {
-    return (
-      <div className="flex flex-col gap-2">
-        {champ.options.map((opt) => (
-          <label
-            key={opt}
-            className={`flex cursor-pointer items-center gap-3 rounded-[2px] border px-3 py-2.5 transition-colors ${
-              value === opt
-                ? "border-gold/60 bg-gold/10"
-                : "border-dark/10 hover:border-gold/30"
-            }`}
-          >
-            <input
-              type="radio"
-              name={`champ-${champ.cle}-${Date.now()}`}
-              className="accent-gold"
-              checked={value === opt}
-              onChange={() => onChange(opt)}
-            />
-            <span className="text-sm text-dark">{opt}</span>
-          </label>
-        ))}
-      </div>
-    );
-  }
-
-  return (
-    <input
-      type={champ.type === "nombre" ? "number" : champ.type === "lien" ? "url" : "text"}
-      className={baseClass}
-      value={typeof value === "string" ? value : ""}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={champ.aide ? champ.aide : undefined}
-    />
-  );
+interface LockState {
+  locked: boolean;
+  reason: string | null;
+  linkHref: string | null;
 }
 
-export default function MissionPage({ params }: { params: { id: string } }) {
-  const router = useRouter();
-  const [mission, setMission] = useState<MissionData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [user, setUser] = useState<any>(null);
-  const [progressId, setProgressId] = useState<string | null>(null);
-  const [missionStatus, setMissionStatus] = useState<string | null>(null);
-  const [lastFeedback, setLastFeedback] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
+interface PromptVariableMap {
+  [missionCode: string]: Record<string, string | string[]>;
+}
 
-  useEffect(() => {
-    async function init() {
-      const supabase = createClient();
-      const {
-        data: { user: u },
-      } = await supabase.auth.getUser();
-      if (!u) {
-        router.push("/login");
-        return;
-      }
-      setUser(u);
+async function fetchMissionRaw(supabase: any, id: string) {
+  const { data, error } = await supabase
+    .from("missions")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (error || !data) return null;
+  return buildMissionData(data);
+}
 
-      // Chercher la mission par code ou par id
-      const m = await fetchMissionByCode(params.id);
-      if (!m) {
-        const fallback = await fetchMission(params.id);
-        if (!fallback) {
-          setError("Mission introuvable");
-          setLoading(false);
-          return;
-        }
-        setMission(fallback);
-      } else {
-        setMission(m);
-      }
+async function fetchMissionByCodeRaw(supabase: any, code: string) {
+  const { data, error } = await supabase
+    .from("missions")
+    .select("*")
+    .eq("code", code)
+    .maybeSingle();
+  if (error || !data) return null;
+  return buildMissionData(data);
+}
 
-      // Récupérer la progression
-      const { data: prog } = await supabase
-        .from("mission_progress")
-        .select("id, status")
-        .eq("mission_id", m?.id ?? params.id)
-        .eq("profile_id", u.id)
-        .maybeSingle();
+function buildMissionData(data: any): MissionData {
+  return {
+    id: data.id,
+    code: data.code ?? String(data.number),
+    number: data.number,
+    active: data.active ?? true,
+    ordre: data.ordre ?? 1,
+    title: data.title,
+    objective: data.objective ?? "",
+    estimated_duration_minutes: data.estimated_duration_minutes ?? 30,
+    why: data.pourquoi ?? "",
+    exemple_avant: data.exemple_avant ?? "",
+    exemple_apres: data.exemple_apres ?? "",
+    champs: data.champs ?? [],
+    criteres: data.criteres ?? [],
+    guide_outil: data.guide_outil ?? undefined,
+    prompts_ia: data.prompts_ia ?? undefined,
+    bonus_elite: data.bonus_elite ?? undefined,
+  };
+}
 
-      if (prog) {
-        setProgressId(prog.id);
-        setMissionStatus(prog.status);
+export default async function MissionPage({ params }: { params: { id: string } }) {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-        // Récupérer le dernier feedback si renvoyé
-        const { data: subs } = await supabase
-          .from("mission_submissions")
-          .select("feedback_coach")
-          .eq("mission_progress_id", prog.id)
-          .order("created_at", { ascending: false })
-          .limit(1);
-        if (subs?.[0]?.feedback_coach) {
-          setLastFeedback(subs[0].feedback_coach);
-        }
-      }
+  if (!user) redirect("/login");
 
-      setLoading(false);
-    }
-    init();
-  }, [params.id, router]);
+  // Fetch mission by code first (e.g. "1.1"), then by id as fallback
+  let mission: MissionData | null = await fetchMissionByCodeRaw(supabase, params.id);
+  if (!mission) {
+    mission = await fetchMissionRaw(supabase, params.id);
+  }
 
-  if (loading) {
+  if (!mission) {
     return (
-      <div className="mx-auto max-w-3xl px-6 py-20 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-gold border-t-transparent" />
-          <p className="text-sm text-secondary">Chargement...</p>
-        </div>
+      <div className="mx-auto max-w-2xl px-6 py-20 text-center">
+        <p className="text-lg font-semibold text-error">Mission introuvable</p>
+        <a href="/dashboard" className="mt-4 inline-block text-sm text-ochre hover:underline">
+          ← Retour au dashboard
+        </a>
       </div>
     );
   }
 
-  if (!mission || error) {
-    return (
-      <div className="mx-auto max-w-2xl px-6 py-20 text-center">
-        <AlertCircle className="mx-auto mb-4 h-12 w-12 text-secondary/30" />
-        <h1 className="t-display-mid text-xl text-dark">Mission introuvable</h1>
-        <Link href="/dashboard" className="mt-4 text-sm text-ochre hover:underline">
-          ← Retour au dashboard
-        </Link>
-      </div>
-    );
+  // Fetch all stages with their missions for lock checks
+  const { data: stages } = await supabase
+    .from("stages")
+    .select("id, number, title, missions(id, code, number, order_index, titre, objective, estimated_duration_minutes, ordre, active, pourquoi, exemple_avant, exemple_apres, champs, criteres, guide_outil, prompts_ia, bonus_elite)")
+    .order("order_index");
+
+  // Fetch user's progress for all missions
+  const { data: progressRows } = await supabase
+    .from("mission_progress")
+    .select("mission_id, status")
+    .eq("profile_id", user.id);
+
+  const progressMap = new Map<string, string>((progressRows ?? []).map((r: any) => [r.mission_id, r.status]));
+
+  // Find this mission's stage
+  const missionStage = (stages ?? []).find((s: any) =>
+    s.missions?.some((m: any) => m.id === mission!.id || m.code === mission!.code)
+  );
+
+  let lockState: LockState = { locked: false, reason: null, linkHref: null };
+
+  // Rule: mission inactive → blocked
+  if (mission.active === false) {
+    lockState = { locked: true, reason: null, linkHref: "/dashboard" };
+  }
+
+  // Rule: previous stage not validated → locked
+  if (!lockState.locked && missionStage) {
+    const stageNumber = missionStage.number;
+    const previousStage = (stages ?? []).find((s: any) => s.number === stageNumber - 1);
+
+    if (previousStage) {
+      const prevMissions = previousStage.missions ?? [];
+      if (!isStageValidated(prevMissions, progressMap)) {
+        const nextPrevMissionId = getNextMissionId(prevMissions, progressMap);
+        lockState = {
+          locked: true,
+          reason: `Étape ${String(previousStage.number).padStart(2, "0")} — ${previousStage.title}`,
+          linkHref: nextPrevMissionId ? `/missions/${nextPrevMissionId}` : `/dashboard`,
+        };
+      }
+    }
+  }
+
+  // Rule: same-stage mission with lower ordre not validated → blocked
+  if (!lockState.locked && missionStage && missionStage.missions) {
+    const sortedMissions = [...missionStage.missions].sort((a: any, b: any) => (a.ordre ?? 0) - (b.ordre ?? 0));
+    const currentOrdre = mission.ordre ?? 0;
+    for (const m of sortedMissions) {
+      if ((m.ordre ?? 0) < currentOrdre && m.active !== false && progressMap.get(m.id) !== "valide") {
+        lockState = {
+          locked: true,
+          reason: `Terminez d'abord la mission ${m.code ?? `#${m.number}`}`,
+          linkHref: `/missions/${m.code ?? m.id}`,
+        };
+        break;
+      }
+    }
+  }
+
+  // Check Elite subscription for bonus_elite
+  let isElite = false;
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (profile?.role === "admin" || profile?.role === "coach") {
+    isElite = true;
+  } else {
+    const { data: sub } = await supabase
+      .from("subscriptions")
+      .select("plan")
+      .eq("profile_id", user.id)
+      .gt("expires_at", new Date().toISOString())
+      .order("expires_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (sub?.plan === "elite") {
+      isElite = true;
+    }
+  }
+
+  // Fetch validated submissions for prompt variables
+  const promptVariableMap: PromptVariableMap = {};
+  if (mission.prompts_ia) {
+    const missionCodes = new Set<string>();
+    for (const p of mission.prompts_ia) {
+      const match = p.prompt.match(/\{\{(\d+\.\d+)\.[^}]+\}\}/g);
+      if (match) {
+        for (const m of match) {
+          const code = m.replace(/\{\{([^.]+)\..+\}\}/, "$1");
+          missionCodes.add(code);
+        }
+      }
+    }
+    for (const code of missionCodes) {
+      const refMission = await fetchMissionByCodeRaw(supabase, code);
+      if (refMission) {
+        const { data: refProgress } = await supabase
+          .from("mission_progress")
+          .select("id")
+          .eq("mission_id", refMission.id)
+          .eq("profile_id", user.id)
+          .maybeSingle();
+        if (refProgress?.id) {
+          const { data: refSub } = await supabase
+            .from("mission_submissions")
+            .select("reponses")
+            .eq("mission_progress_id", refProgress.id)
+            .eq("statut", "valide")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (refSub?.reponses) {
+            promptVariableMap[code] = refSub.reponses as Record<string, string | string[]>;
+          }
+        }
+      }
+    }
   }
 
   return (
     <MissionContent
       mission={mission}
-      progressId={progressId}
-      missionStatus={missionStatus}
-      lastFeedback={lastFeedback}
       user={user}
-      submitted={submitted}
-      onSubmitted={() => setSubmitted(true)}
+      lockState={lockState}
+      progressMap={progressMap}
+      isElite={isElite}
+      promptVariableMap={promptVariableMap}
     />
-  );
-}
-
-function MissionContent({
-  mission,
-  progressId,
-  missionStatus,
-  lastFeedback,
-  user,
-  submitted,
-  onSubmitted,
-}: {
-  mission: MissionData;
-  progressId: string | null;
-  missionStatus: string | null;
-  lastFeedback: string | null;
-  user: any;
-  submitted: boolean;
-  onSubmitted: () => void;
-}) {
-  const router = useRouter();
-  const [reponses, setReponses] = useState<Record<string, string | string[]>>({});
-  const [saving, setSaving] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [computedScore, setComputedScore] = useState<number | null>(null);
-
-  // Pré-remplir depuis localStorage ou soumission précédente
-  useEffect(() => {
-    const key = `mission_draft_${mission.id}`;
-    const saved = localStorage.getItem(key);
-    if (saved) {
-      try {
-        setReponses(JSON.parse(saved));
-        return;
-      } catch {}
-    }
-
-    // Charger depuis la dernière soumission validée
-    fetchLastValidatedSubmission(mission.id, user.id).then((sub) => {
-      if (sub?.reponses) {
-        setReponses(sub.reponses as Record<string, string | string[]>);
-      }
-    });
-  }, [mission.id, user.id]);
-
-  // Sauvegarder le brouillon
-  useEffect(() => {
-    const key = `mission_draft_${mission.id}`;
-    localStorage.setItem(key, JSON.stringify(reponses));
-  }, [reponses, mission.id]);
-
-  function setChamp(cle: string, val: string | string[]) {
-    setReponses((prev) => ({ ...prev, [cle]: val }));
-  }
-
-  function validate(): string | null {
-    if (!mission.champs || mission.champs.length === 0) return null;
-    for (const champ of mission.champs) {
-      if (!champ.obligatoire) continue;
-      const v = reponses[champ.cle];
-      if (v === undefined || v === "" || (Array.isArray(v) && v.length === 0)) {
-        return champ.libelle;
-      }
-    }
-    return null;
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const missing = validate();
-    if (missing) {
-      setSubmitError(`Veuillez remplir : ${missing}`);
-      return;
-    }
-    setSaving(true);
-    setSubmitError(null);
-
-    const supabase = createClient();
-
-    // Créer ou récupérer la progression
-    let pid = progressId;
-    if (!pid) {
-      const { data: prog } = await supabase
-        .from("mission_progress")
-        .select("id")
-        .eq("mission_id", mission.id)
-        .eq("profile_id", user.id)
-        .maybeSingle();
-      if (prog?.id) pid = prog.id;
-    }
-
-    if (!pid) {
-      // Créer une nouvelle progression
-      const { data: newProg } = await supabase
-        .from("mission_progress")
-        .insert({ mission_id: mission.id, profile_id: user.id })
-        .select("id")
-        .single();
-      if (newProg?.id) pid = newProg.id;
-    }
-
-    if (!pid) {
-      setSaving(false);
-      setSubmitError("Erreur : impossible de créer la progression.");
-      return;
-    }
-
-    const contenu = mission.champs && mission.champs.length > 0
-      ? formatContenu(mission.champs, reponses)
-      : JSON.stringify(reponses, null, 2);
-
-    const { error: subError } = await supabase.from("mission_submissions").insert({
-      mission_progress_id: pid,
-      reponses,
-      contenu,
-      statut: "soumis",
-    });
-
-    if (subError) {
-      setSaving(false);
-      setSubmitError("Une erreur est survenue. Réessayez.");
-      return;
-    }
-
-    // Si c'est la mission 1.1, calculer et enregistrer le diagnostic
-    if (mission.code === "1.1" && mission.champs) {
-      const answers: Record<string, number> = {};
-      for (const champ of mission.champs) {
-        if (champ.type === "choix" && champ.points && reponses[champ.cle]) {
-          const optIndex = champ.options?.indexOf(reponses[champ.cle] as string) ?? -1;
-          answers[champ.cle as keyof typeof answers] = champ.points[optIndex] ?? 0;
-        }
-      }
-      // Mapper les clés vers les catégories de diagnostic
-      const categoryMap: Record<string, string> = {
-        offre: "offre",
-        positionnement: "positionnement",
-        audience: "audience",
-        acquisition: "acquisition",
-        captureDeLeads: "captureDeLeads",
-        funnel: "funnel",
-        conversion: "conversion",
-        relance: "relance",
-        analytics: "analytics",
-      };
-      const diagnosticAnswers: any = {};
-      for (const [key, cat] of Object.entries(categoryMap)) {
-        diagnosticAnswers[cat] = answers[key] ?? 0;
-      }
-      const { computeDiagnosticResult } = await import("@/lib/diagnostic/scoring");
-      const result = computeDiagnosticResult(diagnosticAnswers);
-      await supabase.from("diagnostics").insert({
-        profile_id: user.id,
-        answers: diagnosticAnswers,
-        score: result.score,
-        priorities: result.priorities,
-      });
-      setComputedScore(result.score);
-    }
-
-    setSaving(false);
-    localStorage.removeItem(`mission_draft_${mission.id}`);
-    onSubmitted();
-  }
-
-  if (submitted) {
-    return (
-      <div className="mx-auto max-w-3xl px-6 py-10 pb-24 sm:pb-10">
-        <Link href="/dashboard" className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-ochre hover:underline">
-          <ArrowLeft className="h-4 w-4" />
-          Retour au dashboard
-        </Link>
-        <PremiumCard className="text-center py-12" glow>
-          <CheckCircle2 className="mx-auto mb-4 h-16 w-16 text-success" />
-          <h2 className="t-display-mid text-2xl text-dark">Mission soumise !</h2>
-          <p className="mt-3 text-secondary">
-            Votre coach va la vérifier. Vous recevrez un retour sous peu.
-          </p>
-          {computedScore !== null && (
-            <div className="mt-6">
-              <p className="text-sm text-secondary">Votre Funnel Score : </p>
-              <p className="t-chiffre text-5xl text-gold">{computedScore}<span className="text-lg text-secondary">/100</span></p>
-            </div>
-          )}
-        </PremiumCard>
-      </div>
-    );
-  }
-
-  return (
-    <div className="mx-auto max-w-3xl px-6 py-10 pb-24 sm:pb-10">
-      <Link href="/dashboard" className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-ochre hover:underline">
-        <ArrowLeft className="h-4 w-4" />
-        Retour au dashboard
-      </Link>
-
-      {/* Header */}
-      <div className="mb-8">
-        <div className="mb-2 flex items-center gap-3">
-          <Badge tone="default">{mission.code}</Badge>
-          <span className="flex items-center gap-1 text-sm text-secondary">
-            <Clock className="h-3.5 w-3.5" />
-            ~{mission.estimated_duration_minutes} min
-          </span>
-        </div>
-        <h1 className="t-display-mid text-[clamp(1.5rem,4vw,2.25rem)] text-dark">
-          {mission.title}
-        </h1>
-        <p className="mt-2 text-secondary">{mission.objective}</p>
-      </div>
-
-      {/* Pourquoi */}
-      {mission.why && (
-        <PremiumCard className="mb-6 border-l-[3px] border-l-gold" glow>
-          <p className="text-sm text-dark">{mission.why}</p>
-        </PremiumCard>
-      )}
-
-      {/* Exemple Avant / Après */}
-      {(mission.exemple_avant || mission.exemple_apres) && (
-        <PremiumCard title="Exemple" className="mb-6">
-          <div className="grid gap-4 sm:grid-cols-2">
-            {mission.exemple_avant && (
-              <div className="rounded-[2px] border border-error/20 bg-error/5 p-3">
-                <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-error">
-                  <XCircle className="h-3.5 w-3.5" /> Avant
-                </p>
-                <p className="text-sm text-secondary">{mission.exemple_avant}</p>
-              </div>
-            )}
-            {mission.exemple_apres && (
-              <div className="rounded-[2px] border border-success/20 bg-success/5 p-3">
-                <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-success">
-                  <CheckCircle2 className="h-3.5 w-3.5" /> Après
-                </p>
-                <p className="text-sm text-dark">{mission.exemple_apres}</p>
-              </div>
-            )}
-          </div>
-        </PremiumCard>
-      )}
-
-      {/* Bloc Systeme.io */}
-      {mission.guide_outil && mission.guide_outil.length > 0 && (
-        <PremiumCard title="Faites-le dans Systeme.io" className="mb-6">
-          <ol className="space-y-3">
-            {mission.guide_outil.map((etape, i) => (
-              <li key={i} className="flex gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gold/15 text-xs font-bold text-ochre">
-                  {i + 1}
-                </span>
-                <div>
-                  <p className="font-medium text-dark">{etape.titre}</p>
-                  {etape.texte && <p className="mt-0.5 text-sm text-secondary">{etape.texte}</p>}
-                  {etape.lien_video && (
-                    <a
-                      href={etape.lien_video}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-1 inline-flex items-center gap-1 text-xs text-ochre hover:underline"
-                    >
-                      <Play className="h-3 w-3" /> Voir la vidéo
-                    </a>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ol>
-        </PremiumCard>
-      )}
-
-      {/* Formulaire guidé */}
-      {mission.champs && mission.champs.length > 0 ? (
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {mission.champs.map((champ) => (
-            <PremiumCard key={champ.cle} title={champ.libelle + (champ.obligatoire ? " *" : "")}>
-              {champ.aide && (
-                <p className="mb-2 text-xs text-secondary">{champ.aide}</p>
-              )}
-              <ChampInput
-                champ={champ}
-                value={reponses[champ.cle] ?? ""}
-                onChange={(val) => setChamp(champ.cle, val)}
-              />
-            </PremiumCard>
-          ))}
-
-          {/* Calcul en direct pour la mission 1.2 */}
-          {mission.code === "1.2" && reponses["ca_vise"] && reponses["prix_moyen"] && (
-            <PremiumCard title="Calcul automatique">
-              {(() => {
-                const ca = Number(reponses["ca_vise"]);
-                const prix = Number(reponses["prix_moyen"]);
-                if (isNaN(ca) || isNaN(prix) || prix === 0) return null;
-                const ventes = Math.ceil(ca / prix);
-                const parSemaine = (ventes / 13).toFixed(1);
-                return (
-                  <p className="text-sm text-dark">
-                    Soit <span className="font-bold">{ventes}</span> ventes en 90 jours, environ{" "}
-                    <span className="font-bold">{parSemaine}</span> par semaine.
-                  </p>
-                );
-              })()}
-            </PremiumCard>
-          )}
-
-          {submitError && <p className="text-sm text-error">{submitError}</p>}
-
-          <Button type="submit" disabled={saving} className="w-full">
-            {saving ? "Soumission en cours…" : "Soumettre mon livrable"}
-          </Button>
-        </form>
-      ) : (
-        // Compatibilité : champ libre existant
-        <LegacyForm mission={mission} progressId={progressId} onSubmitted={onSubmitted} />
-      )}
-
-      {/* Critères */}
-      {mission.criteres.length > 0 && (
-        <PremiumCard className="mt-6" title={`Votre coach vérifiera que…`}>
-          <ul className="space-y-2">
-            {mission.criteres.map((c, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm text-secondary">
-                <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
-                {c}
-              </li>
-            ))}
-          </ul>
-        </PremiumCard>
-      )}
-
-      {/* Bloc prompts IA */}
-      {mission.prompts_ia && mission.prompts_ia.length > 0 && (
-        <PremiumCard title="Rédigez avec l&apos;IA" className="mt-6">
-          <div className="space-y-4">
-            {mission.prompts_ia.map((p, i) => {
-              const resolvedPrompt = replacePromptVariables(p.prompt, reponses);
-              return (
-                <div key={i} className="rounded-[2px] border border-dark/10 p-3">
-                  <p className="mb-2 font-medium text-dark">{p.titre}</p>
-                  <div className="relative rounded-[2px] bg-paper p-3">
-                    <pre className="whitespace-pre-wrap text-sm text-secondary font-mono">
-                      {resolvedPrompt}
-                    </pre>
-                    <button
-                      type="button"
-                      className="absolute right-2 top-2 rounded-[2px] border border-dark/10 px-2 py-1 text-xs text-secondary hover:border-gold/40 hover:text-ochre"
-                      onClick={() => navigator.clipboard.writeText(resolvedPrompt)}
-                    >
-                      <Copy className="h-3 w-3" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </PremiumCard>
-      )}
-
-      {/* Bonus Elite */}
-      {mission.bonus_elite ? (
-        <PremiumCard className="mt-6 border-l-[3px] border-l-gold" glow>
-          <div dangerouslySetInnerHTML={{ __html: mission.bonus_elite }} className="text-sm text-dark" />
-        </PremiumCard>
-      ) : null}
-    </div>
-  );
-}
-
-function LegacyForm({
-  mission,
-  progressId,
-  onSubmitted,
-}: {
-  mission: MissionData;
-  progressId: string | null;
-  onSubmitted: () => void;
-}) {
-  const [contenu, setContenu] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const key = `mission_draft_legacy_${mission.id}`;
-    const saved = localStorage.getItem(key);
-    if (saved) setContenu(saved);
-  }, [mission.id]);
-
-  useEffect(() => {
-    localStorage.setItem(`mission_draft_legacy_${mission.id}`, contenu);
-  }, [contenu, mission.id]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!contenu.trim()) {
-      setError("Veuillez écrire votre livrable.");
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    const supabase = createClient();
-    let pid = progressId;
-    if (!pid) {
-      const { data: prog } = await supabase
-        .from("mission_progress")
-        .select("id")
-        .eq("mission_id", mission.id)
-        .eq("profile_id", (await supabase.auth.getUser()).data.user?.id)
-        .maybeSingle();
-      if (prog?.id) pid = prog.id;
-    }
-    if (!pid) {
-      setSaving(false);
-      setError("Erreur : aucune progression trouvée.");
-      return;
-    }
-    const { error: subError } = await supabase.from("mission_submissions").insert({
-      mission_progress_id: pid,
-      contenu,
-      statut: "soumis",
-    });
-    setSaving(false);
-    if (subError) {
-      setError("Une erreur est survenue. Réessayez.");
-      return;
-    }
-    localStorage.removeItem(`mission_draft_legacy_${mission.id}`);
-    onSubmitted();
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <PremiumCard>
-        <textarea
-          className="h-64 w-full rounded-[2px] border border-dark/10 bg-paper px-3 py-2 text-sm text-dark placeholder:text-secondary/40 focus:border-gold/60 focus:outline-none"
-          placeholder="Écrivez votre livrable ici…"
-          value={contenu}
-          onChange={(e) => setContenu(e.target.value)}
-        />
-      </PremiumCard>
-      {error && <p className="text-sm text-error">{error}</p>}
-      <Button type="submit" disabled={saving} className="w-full">
-        {saving ? "Soumission en cours…" : "Soumettre mon livrable"}
-      </Button>
-    </form>
   );
 }
