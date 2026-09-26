@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PremiumCard } from "@/components/app-ui/PremiumCard";
 import { PLANS, formatXof, type PlanKey } from "@/lib/subscriptions/plans";
 import { SubscribeButton } from "@/components/subscriptions/SubscribeButton";
-import { Check, Crown, Star, LogIn } from "lucide-react";
+import { Check, Crown, LogIn } from "lucide-react";
 
 export default async function AbonnementPage() {
   const supabase = createClient();
@@ -104,36 +104,15 @@ export default async function AbonnementPage() {
             </div>
 
             <ul className="mt-4 space-y-2">
-              {plan.key === "starter" && [
-                "Accès au parcours en 8 étapes",
-                "Ressources et templates",
-                "Communauté",
-              ].map((item) => (
-                <li key={item} className="flex items-center gap-2 text-sm text-secondary">
-                  <Check className="h-4 w-4 text-gold shrink-0" />
-                  {item}
-                </li>
-              ))}
-              {plan.key === "pro" && [
-                "Tout Starter inclus",
-                "Coaching avec feedback sur chaque mission",
-                "Accès à Virtuose AI",
-              ].map((item) => (
-                <li key={item} className="flex items-center gap-2 text-sm text-secondary">
-                  <Check className="h-4 w-4 text-gold shrink-0" />
-                  {item}
-                </li>
-              ))}
-              {plan.key === "elite" && [
-                "Tout Pro inclus",
-                "Sessions de coaching individuelles",
-                "Revue prioritaire des livrables",
-              ].map((item) => (
-                <li key={item} className="flex items-center gap-2 text-sm text-secondary">
-                  <Check className="h-4 w-4 text-gold shrink-0" />
-                  {item}
-                </li>
-              ))}
+              {plan.avantages.map((item) => {
+                const isElitePremium = plan.key === "elite" && item.includes("tunnel de vente premium");
+                return (
+                  <li key={item} className={`flex items-center gap-2 text-sm ${isElitePremium ? "font-semibold text-dark" : "text-secondary"}`}>
+                    <Check className="h-4 w-4 text-gold shrink-0" />
+                    {item}
+                  </li>
+                );
+              })}
             </ul>
 
             {user ? (
