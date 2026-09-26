@@ -3,31 +3,16 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import {
-  DIAGNOSTIC_CATEGORIES,
-  computeDiagnosticResult,
-  type DiagnosticAnswers,
-  type DiagnosticResult,
-} from "@/lib/diagnostic/scoring";
-import { Button } from "@/components/ui/Button";
 import { PremiumCard } from "@/components/app-ui/PremiumCard";
-import { CheckCircle2, ArrowRight, RotateCcw, Play, FileText, ExternalLink } from "lucide-react";
-
-const DEFAULT_ANSWERS: DiagnosticAnswers = DIAGNOSTIC_CATEGORIES.reduce(
-  (acc, { id }) => ({ ...acc, [id]: 5 }),
-  {} as DiagnosticAnswers
-);
+import { Button } from "@/components/ui/Button";
+import { CheckCircle2, ArrowRight, RotateCcw, Play, FileText } from "lucide-react";
 
 export default function DiagnosticPage() {
   const router = useRouter();
-  const [answers, setAnswers] = useState<DiagnosticAnswers>(DEFAULT_ANSWERS);
-  const [result, setResult] = useState<DiagnosticResult | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
-  const [existingResult, setExistingResult] = useState<DiagnosticResult | null>(null);
-  const [missionProgressId, setMissionProgressId] = useState<string | null>(null);
+  const [existingResult, setExistingResult] = useState<{ score: number; priorities: string[] } | null>(null);
   const [missionStatus, setMissionStatus] = useState<string | null>(null);
+  const [missionProgressId, setMissionProgressId] = useState<string | null>(null);
 
   useEffect(() => {
     async function checkExisting() {
@@ -51,35 +36,36 @@ export default function DiagnosticPage() {
           score: data.score as number,
           priorities: (data.priorities as string[]) ?? [],
         });
+      }
 
-        // Check mission progress for stage 1
-        const { data: stagesData } = await supabase
-          .from("stages")
+      // Check mission progress for stage 1
+      const { data: stagesData } = await supabase
+        .from("stages")
+        .select("id")
+        .eq("number", 1)
+        .limit(1)
+        .maybeSingle();
+
+      if (stagesData?.id) {
+        const { data: missionsData } = await supabase
+          .from("missions")
           .select("id")
-          .eq("number", 1)
+          .eq("stage_id", stagesData.id)
+          .eq("code", "1.1")
           .limit(1)
           .maybeSingle();
 
-        if (stagesData?.id) {
-          const { data: missionsData } = await supabase
-            .from("missions")
-            .select("id")
-            .eq("stage_id", stagesData.id)
-            .limit(1);
+        if (missionsData?.id) {
+          const { data: progress } = await supabase
+            .from("mission_progress")
+            .select("id, status")
+            .eq("profile_id", user.id)
+            .eq("mission_id", missionsData.id)
+            .maybeSingle();
 
-          if (missionsData?.[0]?.id) {
-            const missionId = missionsData[0].id;
-            const { data: progress } = await supabase
-              .from("mission_progress")
-              .select("id, status")
-              .eq("profile_id", user.id)
-              .eq("mission_id", missionId)
-              .maybeSingle();
-
-            if (progress) {
-              setMissionProgressId(progress.id as string);
-              setMissionStatus(progress.status as string);
-            }
+          if (progress) {
+            setMissionProgressId(progress.id as string);
+            setMissionStatus(progress.status as string);
           }
         }
       }
@@ -89,106 +75,16 @@ export default function DiagnosticPage() {
     checkExisting();
   }, []);
 
-  async function createMissionProgress(supabase: ReturnType<typeof createClient>, userId: string) {
-    try {
-      const { data: stagesData } = await supabase
-        .from("stages")
-        .select("id")
-        .eq("number", 1)
-        .limit(1)
-        .maybeSingle();
-
-      if (!stagesData?.id) return;
-
-      const { data: missionsData } = await supabase
-        .from("missions")
-        .select("id")
-        .eq("stage_id", stagesData.id)
-        .limit(1);
-
-      if (!missionsData?.[0]?.id) return;
-
-      const missionId = missionsData[0].id;
-
-      const { data: existing } = await supabase
-        .from("mission_progress")
-        .select("id, status")
-        .eq("profile_id", userId)
-        .eq("mission_id", missionId)
-        .maybeSingle();
-
-      if (!existing) {
-        const { data: created } = await supabase
-          .from("mission_progress")
-          .insert({ profile_id: userId, mission_id: missionId })
-          .select("id, status")
-          .single();
-
-        if (created) {
-          setMissionProgressId(created.id as string);
-          setMissionStatus(created.status as string);
-        }
-      } else {
-        setMissionProgressId(existing.id as string);
-        setMissionStatus(existing.status as string);
-      }
-    } catch {
-      // Silencieux — ne pas bloquer le flow si la table n'existe pas
-    }
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSaveError(null);
-    setSaving(true);
-
-    const computed = computeDiagnosticResult(answers);
-
-    const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      setSaving(false);
-      setSaveError("Une erreur est survenue. Réessayez.");
-      return;
-    }
-
-    const { error } = await supabase.from("diagnostics").insert({
-      profile_id: user.id,
-      answers,
-      score: computed.score,
-      priorities: computed.priorities,
-    });
-
-    setSaving(false);
-
-    if (error) {
-      setSaveError("Une erreur est survenue. Réessayez.");
-      return;
-    }
-
-    await createMissionProgress(supabase, user.id);
-    setResult(computed);
-  }
-
   async function retakeDiagnostic() {
     const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
     await supabase.from("diagnostics").delete().eq("profile_id", user.id);
     setExistingResult(null);
-    setResult(null);
     setMissionProgressId(null);
     setMissionStatus(null);
-    setAnswers(DEFAULT_ANSWERS);
   }
-
-  const displayResult = result ?? existingResult;
 
   if (checking) {
     return (
@@ -201,9 +97,9 @@ export default function DiagnosticPage() {
     );
   }
 
-  if (displayResult) {
+  if (existingResult) {
     const scoreColor =
-      displayResult.score >= 70 ? "text-success" : displayResult.score >= 40 ? "text-ochre" : "text-error";
+      existingResult.score >= 70 ? "text-success" : existingResult.score >= 40 ? "text-ochre" : "text-error";
 
     return (
       <div className="mx-auto max-w-xl px-6 py-10">
@@ -212,20 +108,20 @@ export default function DiagnosticPage() {
             Votre Funnel Score
           </p>
           <p className={`my-4 t-chiffre text-7xl leading-none ${scoreColor}`}>
-            {displayResult.score}<span className="t-meta text-2xl text-secondary">/100</span>
+            {existingResult.score}<span className="t-meta text-2xl text-secondary">/100</span>
           </p>
           <div className="my-6 h-2 w-full overflow-hidden rounded-full bg-dark/8">
             <div
               className={`h-full rounded-full transition-all duration-1000 ${
-                displayResult.score >= 70 ? "bg-success" : displayResult.score >= 40 ? "bg-ochre" : "bg-error"
+                existingResult.score >= 70 ? "bg-success" : existingResult.score >= 40 ? "bg-ochre" : "bg-error"
               }`}
-              style={{ width: `${displayResult.score}%` }}
+              style={{ width: `${existingResult.score}%` }}
             />
           </div>
 
           <PremiumCard title="Vos 3 priorités" className="mt-6 text-left">
             <ol className="space-y-2 pl-1 text-dark">
-              {displayResult.priorities.map((priority, i) => (
+              {existingResult.priorities.map((priority, i) => (
                 <li key={i} className="flex items-start gap-2 text-[0.9375rem]">
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gold/20 text-[0.625rem] font-bold text-ochre">
                     {i + 1}
@@ -255,7 +151,7 @@ export default function DiagnosticPage() {
               <>
                 <Button
                   className="w-full flex items-center justify-center gap-2"
-                  onClick={() => router.push("/missions")}
+                  onClick={() => router.push("/missions/m1-1-etat-lieu")}
                 >
                   <FileText className="h-4 w-4" />
                   Voir mon livrable soumis
@@ -268,7 +164,7 @@ export default function DiagnosticPage() {
               <>
                 <Button
                   className="w-full flex items-center justify-center gap-2"
-                  onClick={() => router.push("/parcours/diagnostic")}
+                  onClick={() => router.push("/missions/m1-1-etat-lieu")}
                 >
                   <RotateCcw className="h-4 w-4" />
                   Corriger mon diagnostic
@@ -281,13 +177,13 @@ export default function DiagnosticPage() {
               <>
                 <Button
                   className="w-full flex items-center justify-center gap-2"
-                  onClick={() => router.push("/parcours/diagnostic")}
+                  onClick={() => router.push("/missions/m1-1-etat-lieu")}
                 >
                   <Play className="h-4 w-4" />
-                  Valider l&apos;étape 1 — Compléter mon diagnostic
+                  Commencer mon diagnostic
                 </Button>
                 <p className="text-center text-xs text-secondary">
-                  Votre score est enregistré. Maintenant, validez votre mission pour débloquer la suite.
+                  Répondez aux questions de la mission pour obtenir votre Funnel Score.
                 </p>
               </>
             )}
@@ -306,47 +202,24 @@ export default function DiagnosticPage() {
     );
   }
 
+  // No existing result — show CTA to start
   return (
-    <div className="mx-auto max-w-2xl px-6 py-10">
-      <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-ochre">Diagnostic</p>
-      <h1 className="t-display-mid mb-2 text-[clamp(1.5rem,4vw,2rem)] text-dark">
-        Évaluez votre système de vente
-      </h1>
-      <p className="mb-8 text-[1.0625rem] text-secondary">
-        Répondez à ces 9 questions pour obtenir votre Funnel Score et vos 3 priorités.
-        Ce diagnostic prend environ 3 minutes.
-      </p>
-
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        {DIAGNOSTIC_CATEGORIES.map(({ id, label }) => (
-          <PremiumCard key={id} className="py-4">
-            <div className="mb-3 flex items-center justify-between">
-              <label htmlFor={id} className="text-sm font-semibold text-dark">
-                {label}
-              </label>
-              <span className="t-chiffre text-lg text-ochre">{answers[id]}</span>
-            </div>
-            <input
-              id={id}
-              type="range"
-              min={0}
-              max={10}
-              value={answers[id]}
-              onChange={(e) => setAnswers((prev) => ({ ...prev, [id]: Number(e.target.value) }))}
-              className="h-2 w-full cursor-pointer appearance-none rounded-full bg-dark/10 accent-gold"
-            />
-            <div className="mt-1 flex justify-between text-[0.625rem] text-secondary/60">
-              <span>À construire</span>
-              <span>Maîtrisé</span>
-            </div>
-          </PremiumCard>
-        ))}
-
-        <Button type="submit" disabled={saving} className="mt-2 w-full">
-          {saving ? "Calcul en cours…" : "Obtenir mon Funnel Score"}
+    <div className="mx-auto max-w-xl px-6 py-20">
+      <PremiumCard glow className="text-center">
+        <CheckCircle2 className="mx-auto mb-4 h-16 w-16 text-gold" />
+        <h1 className="t-display-mid text-2xl text-dark">Votre diagnostic vous attend</h1>
+        <p className="mt-3 text-secondary">
+          Répondez à 13 questions pour obtenir votre Funnel Score et identifier vos 3 priorités.
+          Cela prend environ 20 minutes.
+        </p>
+        <Button
+          className="mt-6 w-full flex items-center justify-center gap-2"
+          onClick={() => router.push("/missions/m1-1-etat-lieu")}
+        >
+          <Play className="h-4 w-4" />
+          Faire mon état des lieux
         </Button>
-        {saveError && <p className="text-sm text-error">{saveError}</p>}
-      </form>
+      </PremiumCard>
     </div>
   );
 }

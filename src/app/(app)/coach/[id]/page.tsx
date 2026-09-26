@@ -5,7 +5,7 @@ import { PremiumCard } from "@/components/app-ui/PremiumCard";
 import { CoachReviewForm } from "@/components/coach/CoachReviewForm";
 import { formatDateTime } from "@/lib/missions/format";
 import { Badge } from "@/components/ui/Badge";
-import { FileText, User, Calendar, Target } from "lucide-react";
+import { FileText, User, Calendar, Target, CheckCircle2 } from "lucide-react";
 import type { SubmissionStatus } from "@/lib/missions/status";
 
 interface SubmissionDetailRow {
@@ -15,10 +15,11 @@ interface SubmissionDetailRow {
   feedback_coach: string | null;
   created_at: string;
   updated_at: string;
+  reponses?: Record<string, string | string[]> | null;
   mission_progress: {
     id: string;
     profile_id: string;
-    missions: { number: number; title: string; objective: string } | null;
+    missions: { number: number; title: string; objective: string; code?: string; champs?: any[]; criteres?: string[] } | null;
   } | null;
 }
 
@@ -48,7 +49,7 @@ export default async function CoachSubmissionPage({ params }: { params: { id: st
   const { data } = await supabase
     .from("mission_submissions")
     .select(
-      "id, contenu, statut, feedback_coach, created_at, updated_at, mission_progress(id, profile_id, missions(number, title, objective))"
+      "id, contenu, statut, feedback_coach, reponses, created_at, updated_at, mission_progress(id, profile_id, missions(number, title, objective, code, champs))"
     )
     .eq("id", params.id)
     .maybeSingle();
@@ -76,6 +77,10 @@ export default async function CoachSubmissionPage({ params }: { params: { id: st
 
   const previousSubmissions = (previousData ?? []) as unknown as PreviousSubmissionRow[];
 
+  // Afficher les réponses champ par champ si elles existent
+  const hasStructuredResponses = submission.reponses && Object.keys(submission.reponses).length > 0;
+  const champs = mission?.champs ?? [];
+
   return (
     <div className="mx-auto max-w-3xl px-6 py-10 pb-24 sm:pb-10">
       <Link href="/coach" className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-ochre hover:underline">
@@ -88,7 +93,7 @@ export default async function CoachSubmissionPage({ params }: { params: { id: st
       {/* Header */}
       <div className="mb-8">
         <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-ochre">
-          Mission {mission?.number ?? "?"}
+          Mission {mission?.code ?? mission?.number ?? "?"}
         </p>
         <h1 className="t-display-mid text-[clamp(1.5rem,4vw,2.25rem)] text-dark">
           {mission?.title ?? "Mission inconnue"}
@@ -120,19 +125,70 @@ export default async function CoachSubmissionPage({ params }: { params: { id: st
         </PremiumCard>
       )}
 
-      {/* Livrable */}
-      <PremiumCard
-        title="Livrable soumis"
-        className="mb-6"
-        subtitle={`${submission.contenu.length} caractères`}
-      >
-        <div className="flex items-start gap-3">
-          <FileText className="mt-0.5 h-4 w-4 shrink-0 text-secondary" />
-          <p className="whitespace-pre-wrap break-words text-[1.0625rem] leading-relaxed text-dark">
-            {submission.contenu}
-          </p>
-        </div>
-      </PremiumCard>
+      {/* Réponses structurées champ par champ */}
+      {hasStructuredResponses && champs.length > 0 ? (
+        <PremiumCard
+          title="Réponses du participant"
+          className="mb-6"
+        >
+          <div className="space-y-4">
+            {champs.map((champ: any) => {
+              const value = submission.reponses?.[champ.cle];
+              if (value === undefined || value === "") return null;
+              return (
+                <div key={champ.cle} className="rounded-[2px] border border-dark/8 p-3">
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-ochre">
+                    {champ.libelle}
+                  </p>
+                  {Array.isArray(value) ? (
+                    <ul className="list-disc pl-5 text-sm text-dark">
+                      {value.map((v: string, i: number) => (
+                        <li key={i}>{v}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-dark">{value}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </PremiumCard>
+      ) : null}
+
+      {/* Contenu legacy (fallback) */}
+      {!hasStructuredResponses && (
+        <PremiumCard
+          title="Livrable soumis"
+          className="mb-6"
+          subtitle={`${submission.contenu.length} caractères`}
+        >
+          <div className="flex items-start gap-3">
+            <FileText className="mt-0.5 h-4 w-4 shrink-0 text-secondary" />
+            <p className="whitespace-pre-wrap break-words text-[1.0625rem] leading-relaxed text-dark">
+              {submission.contenu}
+            </p>
+          </div>
+        </PremiumCard>
+      )}
+
+      {/* Critères de la mission avec cases à cocher */}
+      {mission?.criteres && mission.criteres.length > 0 && (
+        <PremiumCard
+          title="Critères de validation"
+          className="mb-6"
+          subtitle="Aide visuelle — rien n'est enregistré"
+        >
+          <div className="space-y-2">
+            {mission.criteres.map((c: string, i: number) => (
+              <label key={i} className="flex items-start gap-2.5 cursor-pointer">
+                <input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-dark/30 accent-gold" />
+                <span className="text-sm text-dark">{c}</span>
+              </label>
+            ))}
+          </div>
+        </PremiumCard>
+      )}
 
       {/* Revue */}
       <PremiumCard

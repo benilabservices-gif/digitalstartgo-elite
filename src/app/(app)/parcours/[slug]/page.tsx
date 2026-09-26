@@ -84,23 +84,29 @@ export default async function StagePage({ params }: { params: { slug: string } }
   const stageNum = stage.number;
 
   // Lock logic: check ALL previous stages
+  // Active missions must all be validated. An old (inactive) validated mission also unlocks.
   let isLocked = false;
   if (stageNum > 1) {
     const { data: prevStagesData } = await supabase
       .from("stages")
-      .select("missions(id)")
+      .select("missions(id, active)")
       .lt("number", stageNum)
       .order("number", { ascending: true });
 
-    const allPrevMissionIds = ((prevStagesData ?? []) as any[]).flatMap((s) => (s.missions ?? []).map((m: any) => m.id));
-    if (allPrevMissionIds.length > 0) {
+    const prevMissions = ((prevStagesData ?? []) as any[]).flatMap((s: any) => (s.missions ?? []));
+    const prevActiveIds = prevMissions.filter((m: any) => m.active !== false).map((m: any) => m.id);
+    const prevInactiveIds = prevMissions.filter((m: any) => m.active === false).map((m: any) => m.id);
+
+    if (prevActiveIds.length > 0 || prevInactiveIds.length > 0) {
       const { data: prevProgress } = await supabase
         .from("mission_progress")
         .select("mission_id, status")
-        .in("mission_id", allPrevMissionIds);
+        .in("mission_id", [...prevActiveIds, ...prevInactiveIds]);
 
       const prevMap = new Map((prevProgress ?? []).map((p: any) => [p.mission_id, p.status]));
-      isLocked = !allPrevMissionIds.every((mid) => prevMap.get(mid) === "valide");
+      const activeAllValidated = prevActiveIds.length === 0 || prevActiveIds.every((mid: string) => prevMap.get(mid) === "valide");
+      const hasOldValidated = prevInactiveIds.some((mid: string) => prevMap.get(mid) === "valide");
+      isLocked = !(activeAllValidated || hasOldValidated);
     }
   }
 
@@ -127,7 +133,10 @@ export default async function StagePage({ params }: { params: { slug: string } }
     }
   }
 
-  const allValidated = stage.missions.length > 0 && stage.missions.every((m) => progressByMission.get(m.id) === "valide");
+  const allValidated = stage.missions.length > 0 && stage.missions.every((m: any) => {
+    if (m.active === false) return true; // inactive missions are considered validated
+    return progressByMission.get(m.id) === "valide";
+  });
 
   // Find next stage
   const { data: nextStageData } = await supabase
