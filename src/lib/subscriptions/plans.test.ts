@@ -13,12 +13,27 @@ describe("formatXof", () => {
   it("ne casse pas sur un petit montant", () => {
     expect(formatXof(500)).toBe("500 FCFA");
   });
+
+  it("formate 349 900 FCFA", () => {
+    expect(formatXof(349900)).toBe("349 900 FCFA");
+  });
 });
 
 describe("PLANS", () => {
-  it("expose les 3 paliers avec les prix publiés sur la landing page", () => {
-    expect(PLANS.starter.amountXof).toBe(99900);
-    expect(PLANS.pro.amountXof).toBe(149900);
-    expect(PLANS.elite.amountXof).toBe(249900);
+  it("expose les 3 paliers avec les nouveaux prix", () => {
+    expect(PLANS.starter.amountXof).toBe(149900);
+    expect(PLANS.pro.amountXof).toBe(249900);
+    expect(PLANS.elite.amountXof).toBe(349900);
+  });
+
+  it("expose les avantages pour chaque palier", () => {
+    expect(PLANS.starter.avantages.length).toBeGreaterThan(0);
+    expect(PLANS.pro.avantages.length).toBeGreaterThan(0);
+    expect(PLANS.elite.avantages.length).toBeGreaterThan(0);
+  });
+
+  it("mentionne le tunnel premium pour Elite", () => {
+    const eliteAvantages = PLANS.elite.avantages.join(" ");
+    expect(eliteAvantages).toContain("tunnel de vente premium");
   });
 });
