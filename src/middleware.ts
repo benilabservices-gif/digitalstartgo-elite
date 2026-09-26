@@ -96,9 +96,19 @@ export async function middleware(request: NextRequest) {
       .eq("id", user.id)
       .maybeSingle();
 
-    // Onboarding requis (sauf si déjà sur la page onboarding)
-    if (!isOnboarding && (!profile || profile.onboarding_completed !== true)) {
-      return NextResponse.redirect(new URL("/onboarding", request.url));
+    // Redirection par rôle : admin → /admin, coach → /coach
+    if (profile?.role === "admin" && pathname.startsWith("/dashboard")) {
+      return NextResponse.redirect(new URL("/admin", request.url));
+    }
+    if (profile?.role === "coach" && pathname.startsWith("/dashboard")) {
+      return NextResponse.redirect(new URL("/coach", request.url));
+    }
+
+    // Onboarding requis uniquement pour les participants
+    if (profile?.role === "participant" && !isOnboarding) {
+      if (!profile.onboarding_completed) {
+        return NextResponse.redirect(new URL("/onboarding", request.url));
+      }
     }
 
     // Abonnement requis uniquement pour les participants

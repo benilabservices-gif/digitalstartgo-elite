@@ -4,74 +4,250 @@
 import { middleware } from "@/middleware";
 import { NextRequest } from "next/server";
 
-// Mock Supabase
-jest.mock("@/lib/supabase/server", () => ({
-  createClient: jest.fn(() => ({
-    auth: { getUser: jest.fn() },
-    from: jest.fn(() => ({
-      select: jest.fn(() => ({
-        eq: jest.fn(() => ({
-          maybeSingle: jest.fn(),
-          single: jest.fn(),
-        })),
-        order: jest.fn(),
-        limit: jest.fn(),
+// Mock Supabase client
+const mockSupabase = {
+  auth: {
+    getUser: jest.fn(),
+  },
+  from: jest.fn(() => ({
+    select: jest.fn(() => ({
+      eq: jest.fn(() => ({
+        maybeSingle: jest.fn(),
+        single: jest.fn(),
       })),
+      order: jest.fn(),
+      limit: jest.fn(),
+      gt: jest.fn(),
     })),
+    rpc: jest.fn(),
   })),
+};
+
+jest.mock("@/lib/supabase/server", () => ({
+  createClient: jest.fn(() => mockSupabase),
+}));
+
+// Mock NextResponse
+const mockRedirect = jest.fn((url: string) => ({ url }));
+jest.mock("next/server", () => ({
+  NextResponse: {
+    next: jest.fn(() => ({
+      cookies: {
+        get: jest.fn(),
+        set: jest.fn(),
+        delete: jest.fn(),
+      },
+    })),
+    redirect: mockRedirect,
+  },
+  NextRequest: class {
+    url: string;
+    nextUrl: { pathname: string };
+    headers: Map<string, string>;
+    cookies: { get: jest.Mock };
+
+    constructor(url: string) {
+      this.url = url;
+      this.nextUrl = { pathname: new URL(url).pathname };
+      this.headers = new Map();
+      this.cookies = { get: jest.fn() };
+    }
+  },
 }));
 
 describe("Middleware — Redirections par rôle", () => {
-  const mockRedirect = jest.fn();
-  
   beforeEach(() => {
     jest.clearAllMocks();
-    // Mock NextResponse
-    jest.mock("next/server", () => ({
-      NextResponse: {
-        next: jest.fn(() => ({ cookies: { get: jest.fn(), set: jest.fn(), delete: jest.fn() } })),
-        redirect: mockRedirect,
-      },
-      NextRequest: class {
-        constructor(url: string) {
-          Object.assign(this, {
-            url,
-            nextUrl: { pathname: new URL(url).pathname },
-            headers: new Map(),
-            cookies: { get: () => null },
-          });
-        }
-      },
-    }));
   });
 
-  it("doit rediriger un participant vers /dashboard après connexion", async () => {
-    // Simuler un utilisateur connecté avec rôle participant
-    const request = new NextRequest("http://localhost/login");
-    
-    // Le middleware devrait rediriger vers /dashboard
-    // Note: Ce test nécessite un mock plus complet du client Supabase
-    expect(mockRedirect).toBeDefined();
+  describe("Redirection après connexion", () => {
+    it("doit rediriger un admin vers /admin après login", async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: "admin-id" } },
+        error: null,
+      });
+      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
+        data: { role: "admin", onboarding_completed: true },
+        error: null,
+      });
+
+      const request = new NextRequest("http://localhost/login");
+      const response = await middleware(request);
+
+      expect(mockRedirect).toHaveBeenCalledWith(expect.objectContaining({ pathname: "/admin" }));
+    });
+
+    it("doit rediriger un coach vers /coach après login", async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: "coach-id" } },
+        error: null,
+      });
+      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
+        data: { role: "coach", onboarding_completed: true },
+        error: null,
+      });
+
+      const request = new NextRequest("http://localhost/login");
+      const response = await middleware(request);
+
+      expect(mockRedirect).toHaveBeenCalledWith(expect.objectContaining({ pathname: "/coach" }));
+    });
+
+    it("doit rediriger un participant vers /dashboard après login", async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: "participant-id" } },
+        error: null,
+      });
+      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
+        data: { role: "participant", onboarding_completed: true },
+        error: null,
+      });
+
+      const request = new NextRequest("http://localhost/login");
+      const response = await middleware(request);
+
+      expect(mockRedirect).toHaveBeenCalledWith(expect.objectContaining({ pathname: "/dashboard" }));
+    });
   });
 
-  it("doit rediriger un admin vers /admin après connexion", async () => {
-    const request = new NextRequest("http://localhost/login");
-    // Test de base — vérifie que le middleware existe
-    expect(typeof middleware).toBe("function");
+  describe("Redirection par rôle sur /dashboard", () => {
+    it("doit rediriger un admin de /dashboard vers /admin", async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: "admin-id" } },
+        error: null,
+      });
+      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
+        data: { role: "admin", onboarding_completed: true },
+        error: null,
+      });
+
+      const request = new NextRequest("http://localhost/dashboard");
+      const response = await middleware(request);
+
+      expect(mockRedirect).toHaveBeenCalledWith(expect.objectContaining({ pathname: "/admin" }));
+    });
+
+    it("doit rediriger un coach de /dashboard vers /coach", async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: "coach-id" } },
+        error: null,
+      });
+      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
+        data: { role: "coach", onboarding_completed: true },
+        error: null,
+      });
+
+      const request = new NextRequest("http://localhost/dashboard");
+      const response = await middleware(request);
+
+      expect(mockRedirect).toHaveBeenCalledWith(expect.objectContaining({ pathname: "/coach" }));
+    });
   });
 
-  it("doit bloquer l'accès à /admin pour un participant", async () => {
-    // Un participant qui tente d'accéder à /admin doit être redirigé vers /dashboard
-    expect(true).toBe(true); // Test placeholder
+  describe("Blocage d'accès cross-rôle", () => {
+    it("doit rediriger un participant qui accède à /admin vers /dashboard", async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: "participant-id" } },
+        error: null,
+      });
+      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
+        data: { role: "participant", onboarding_completed: true },
+        error: null,
+      });
+      mockSupabase.from().select().eq().gt().limit().maybeSingle.mockResolvedValue({
+        data: { id: "sub-1" },
+        error: null,
+      });
+
+      const request = new NextRequest("http://localhost/admin");
+      const response = await middleware(request);
+
+      expect(mockRedirect).toHaveBeenCalledWith(expect.objectContaining({ pathname: "/dashboard" }));
+    });
+
+    it("doit rediriger un coach qui accède à /admin vers /coach", async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: "coach-id" } },
+        error: null,
+      });
+      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
+        data: { role: "coach", onboarding_completed: true },
+        error: null,
+      });
+
+      const request = new NextRequest("http://localhost/admin");
+      const response = await middleware(request);
+
+      expect(mockRedirect).toHaveBeenCalledWith(expect.objectContaining({ pathname: "/coach" }));
+    });
+
+    it("doit laisser un admin accéder à /admin", async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: "admin-id" } },
+        error: null,
+      });
+      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
+        data: { role: "admin", onboarding_completed: true },
+        error: null,
+      });
+
+      const request = new NextRequest("http://localhost/admin");
+      const response = await middleware(request);
+
+      // Ne doit pas rediriger
+      expect(mockRedirect).not.toHaveBeenCalled();
+    });
   });
 
-  it("doit bloquer l'accès à /admin pour un coach", async () => {
-    // Un coach qui tente d'accéder à /admin doit être redirigé vers /coach
-    expect(true).toBe(true); // Test placeholder
-  });
+  describe("Onboarding et abonnement", () => {
+    it("doit rediriger un participant non-onboardé vers /onboarding", async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: "participant-id" } },
+        error: null,
+      });
+      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
+        data: { role: "participant", onboarding_completed: false },
+        error: null,
+      });
 
-  it("doit autoriser l'accès à /dashboard pour un participant", async () => {
-    // Un participant connecté peut accéder à /dashboard
-    expect(true).toBe(true); // Test placeholder
+      const request = new NextRequest("http://localhost/dashboard");
+      const response = await middleware(request);
+
+      expect(mockRedirect).toHaveBeenCalledWith(expect.objectContaining({ pathname: "/onboarding" }));
+    });
+
+    it("ne doit pas exiger l'onboarding pour un admin", async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: "admin-id" } },
+        error: null,
+      });
+      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
+        data: { role: "admin", onboarding_completed: false },
+        error: null,
+      });
+
+      const request = new NextRequest("http://localhost/admin");
+      const response = await middleware(request);
+
+      // Ne doit pas rediriger vers onboarding
+      expect(mockRedirect).not.toHaveBeenCalledWith(expect.objectContaining({ pathname: "/onboarding" }));
+    });
+
+    it("ne doit pas exiger l'abonnement pour un coach", async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: "coach-id" } },
+        error: null,
+      });
+      mockSupabase.from().select().eq().maybeSingle.mockResolvedValue({
+        data: { role: "coach", onboarding_completed: true },
+        error: null,
+      });
+
+      const request = new NextRequest("http://localhost/coach");
+      const response = await middleware(request);
+
+      // Ne doit pas rediriger vers abonnement
+      expect(mockRedirect).not.toHaveBeenCalledWith(expect.objectContaining({ pathname: "/abonnement" }));
+    });
   });
 });

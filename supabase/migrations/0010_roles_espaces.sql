@@ -1,8 +1,24 @@
 -- Migration 0010 : Espaces par rôle et fonctions admin
 -- ============================================================
 
--- 1. Fonction pour changer le rôle d'un utilisateur
---    Sécurité : SECURITY DEFINER pour contourner RLS
+-- 1. Fonction pour vérifier si l'utilisateur est admin
+create or replace function public.is_admin()
+returns boolean
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  return exists (
+    select 1 from profiles
+    where id = auth.uid()
+    and role = 'admin'
+  );
+end;
+$$;
+
+-- 2. Fonction pour changer le rôle d'un utilisateur
+--    SECURITY DEFINER pour contourner RLS
 --    Vérifie que l'appelant est admin et qu'il ne se retire pas lui-même son rôle
 create or replace function public.change_user_role(
   p_user_id uuid,
@@ -42,57 +58,63 @@ begin
 end;
 $$;
 
--- 2. Autoriser uniquement authenticated à appeler cette fonction
-revoke execute on function public.change_user_role(uuid, text) from public, anon;
-grant execute on function public.change_user_role(uuid, text) to authenticated;
-
--- 3. Fonction helper pour vérifier si l'utilisateur est admin
-create or replace function public.is_admin()
-returns boolean
+-- 3. Fonction pour lister tous les membres (admin uniquement)
+--    SECURITY DEFINER pour permettre la lecture de auth.users
+create or replace function public.admin_list_members()
+returns table (
+  id uuid,
+  email text,
+  full_name text,
+  business_name text,
+  role text,
+  cohort_id uuid,
+  subscription_active boolean
+)
 language plpgsql
 security definer
 set search_path = public, pg_temp
 as $$
 begin
-  return exists (
-    select 1 from profiles
-    where id = auth.uid()
-    and role = 'admin'
-  );
+  -- Vérifier que l'appelant est admin
+  if not exists (select 1 from profiles where id = auth.uid() and role = 'admin') then
+    raise exception 'Unauthorized: only admins can list members';
+  end if;
+  
+  -- Retourner la liste des membres avec leur email depuis auth.users
+  return query
+  select
+    p.id,
+    au.email,
+    p.full_name,
+    p.business_name,
+    p.role,
+    p.cohort_id,
+    exists (
+      select 1 from subscriptions s
+      where s.profile_id = p.id
+      and s.expires_at > now()
+    ) as subscription_active
+  from profiles p
+  left join auth.users au on au.id = p.id;
 end;
 $$;
 
--- 4. Autoriser l'appel de is_admin()
+-- 4. Révoquer l'accès public aux fonctions sensibles
 revoke execute on function public.is_admin() from public, anon;
 grant execute on function public.is_admin() to authenticated;
 
--- 5. Modifier les policies RLS pour mission_submissions
---    Permettre aux admins de tout voir et modifier
+revoke execute on function public.change_user_role(uuid, text) from public, anon;
+grant execute on function public.change_user_role(uuid, text) to authenticated;
+
+revoke execute on function public.admin_list_members() from public, anon;
+grant execute on function public.admin_list_members() to authenticated;
+
+-- 5. Politiques RLS pour mission_submissions — permitir aux admins de tout voir
 drop policy if exists "admins_manage_submissions" on mission_submissions;
 create policy "admins_manage_submissions" on mission_submissions
   for all using (public.is_admin());
 
--- 6. Modifier les policies RLS pour mission_progress
---    Permettre aux admins de tout voir et modifier
+-- 6. Politiques RLS pour mission_progress — permitir aux admins de tout voir
 drop policy if exists "admins_manage_progress" on mission_progress;
 create policy "admins_manage_progress" on mission_progress
   for all using (public.is_admin());
-
--- 7. Créer une vue pour lister tous les membres avec leurs infos complètes
-create or replace view public.v_all_members as
-select
-  p.id,
-  p.email,
-  p.full_name,
-  p.business_name,
-  p.role,
-  p.cohort_id,
-  c.name as cohort_name,
-  p.onboarding_completed,
-  s.id as subscription_id,
-  s.plan,
-  s.expires_at,
-  case when s.id is not null and s.expires_at > now() then true else false end as subscription_active
-from profiles p
-left join cohorts c on p.cohort_id = c.id
-left join subscriptions s on p.id = s.profile_id and s.expires_at > now();

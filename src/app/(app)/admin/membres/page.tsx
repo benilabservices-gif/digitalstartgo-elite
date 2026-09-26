@@ -4,48 +4,26 @@ import { PremiumCard } from "@/components/app-ui/PremiumCard";
 import { Badge } from "@/components/ui/Badge";
 import { Users, CheckCircle2, XCircle } from "lucide-react";
 
-interface ProfileRow {
-  id: string;
-  email: string;
-  full_name: string | null;
-  business_name: string | null;
-  role: string;
-  cohort_id: string | null;
-  onboarding_completed: boolean;
-  subscription_active: boolean | null;
-}
-
 export default async function AdminMembresPage() {
   const { supabase } = await requireAdmin();
 
-  // Récupérer tous les profiles avec leur abonnement actif
-  const { data: profilesData } = await supabase
-    .from("profiles")
-    .select("id, email, full_name, business_name, role, cohort_id, onboarding_completed");
-
-  const profiles = (profilesData ?? []) as any[];
-
-  // Vérifier les abonnements actifs pour chaque profil
-  const { data: subscriptionsData } = await supabase
-    .from("subscriptions")
-    .select("profile_id, expires_at")
-    .gt("expires_at", new Date().toISOString());
-
-  const activeSubscriptions = new Set(
-    (subscriptionsData ?? []).map((s: any) => s.profile_id)
-  );
+  // Utiliser la fonction SQL admin_list_members()
+  const { data: membersData } = await supabase.rpc("admin_list_members");
+  const rows = (membersData ?? []) as Array<{
+    id: string;
+    email: string;
+    full_name: string | null;
+    business_name: string | null;
+    role: string;
+    cohort_id: string | null;
+    subscription_active: boolean;
+  }>;
 
   // Récupérer les noms des cohortes
   const { data: cohortsData } = await supabase
     .from("cohorts")
     .select("id, name");
   const cohortMap = new Map((cohortsData ?? []).map((c: any) => [c.id, c.name]));
-
-  const rows = profiles.map((p) => ({
-    ...p,
-    subscription_active: activeSubscriptions.has(p.id),
-    cohort_name: p.cohort_id ? cohortMap.get(p.cohort_id) : null,
-  }));
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-10 pb-24 sm:pb-10">
@@ -82,7 +60,6 @@ export default async function AdminMembresPage() {
                   <th className="pb-3 pr-4 text-left text-xs font-semibold uppercase tracking-wider text-secondary">Rôle</th>
                   <th className="pb-3 pr-4 text-left text-xs font-semibold uppercase tracking-wider text-secondary">Cohorte</th>
                   <th className="pb-3 pr-4 text-left text-xs font-semibold uppercase tracking-wider text-secondary">Abonnement</th>
-                  <th className="pb-3 pr-4 text-left text-xs font-semibold uppercase tracking-wider text-secondary">Onboarding</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-dark/5">
@@ -107,7 +84,7 @@ export default async function AdminMembresPage() {
                       </Badge>
                     </td>
                     <td className="py-3 pr-4 text-secondary">
-                      {row.cohort_name ?? "—"}
+                      {row.cohort_id ? (cohortMap.get(row.cohort_id) ?? "—") : "—"}
                     </td>
                     <td className="py-3 pr-4">
                       {row.subscription_active ? (
@@ -120,13 +97,6 @@ export default async function AdminMembresPage() {
                           <XCircle className="h-3 w-3" />
                           Non
                         </span>
-                      )}
-                    </td>
-                    <td className="py-3 pr-4">
-                      {row.onboarding_completed ? (
-                        <span className="text-xs text-success">Complété</span>
-                      ) : (
-                        <span className="text-xs text-secondary">En cours</span>
                       )}
                     </td>
                   </tr>
