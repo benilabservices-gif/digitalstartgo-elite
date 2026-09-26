@@ -39,4 +39,23 @@ describe("computeDiagnosticResult", () => {
       "Clarifier votre positionnement",
     ]);
   });
+
+  it("calcule correctement le score avec les points du diagnostic 1.1", () => {
+    // Simulation d'un participant avec des réponses réalistes
+    const answers: DiagnosticAnswers = {
+      offre: 5,
+      positionnement: 3,
+      audience: 6,
+      acquisition: 4,
+      captureDeLeads: 2,
+      funnel: 0,
+      conversion: 1,
+      relance: 1,
+      analytics: 0,
+    };
+    const result = computeDiagnosticResult(answers);
+    // Total = 5+3+6+4+2+0+1+1+0 = 22, max = 90, score = round(22/90*100) = 24
+    expect(result.score).toBe(24);
+    expect(result.priorities.length).toBe(3);
+  });
 });

@@ -1,60 +1,58 @@
-import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { PremiumCard } from "@/components/app-ui/PremiumCard";
-import { Badge } from "@/components/ui/Badge";
-import { MissionSubmissionForm } from "@/components/missions/MissionSubmissionForm";
-import { formatDateTime } from "@/lib/missions/format";
-import {
-  MISSION_STATUS_LABELS,
-  MISSION_STATUS_TONE,
-  canSubmitMission,
-  submissionBlockedReason,
-  toMissionStatus,
-  type SubmissionStatus,
-} from "@/lib/missions/status";
-import { Clock, FileText, CheckCircle2, AlertCircle, BookOpen, ArrowRight } from "lucide-react";
+import { isStageValidated, getNextMissionId } from "@/lib/missions/stage-lock";
+import MissionContent from "./MissionContent";
+import type { MissionData } from "@/lib/missions/guided/types";
 
-const SUBMISSION_TONE: Record<SubmissionStatus, "default" | "success" | "warning" | "error"> = {
-  soumis: "warning",
-  a_corriger: "error",
-  valide: "success",
-};
-
-const SUBMISSION_LABELS: Record<SubmissionStatus, string> = {
-  soumis: "En attente de revue",
-  a_corriger: "À corriger",
-  valide: "Validé",
-};
-
-interface MissionData {
-  id: string;
-  number: number;
-  title: string;
-  objective: string;
-  estimated_duration_minutes: number;
-  stages?: { number: number; title: string } | null;
+interface LockState {
+  locked: boolean;
+  reason: string | null;
+  linkHref: string | null;
 }
 
-interface ProgressData {
-  id: string;
-  status: string;
+interface PromptVariableMap {
+  [missionCode: string]: Record<string, string | string[]>;
 }
 
-interface SubmissionRow {
-  id: string;
-  contenu: string;
-  statut: SubmissionStatus;
-  feedback_coach: string | null;
-  created_at: string;
-  updated_at: string;
+async function fetchMissionRaw(supabase: any, id: string) {
+  const { data, error } = await supabase
+    .from("missions")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (error || !data) return null;
+  return buildMissionData(data);
 }
 
-interface ResourceRow {
-  id: string;
-  slug: string;
-  title: string;
-  description: string;
+async function fetchMissionByCodeRaw(supabase: any, code: string) {
+  const { data, error } = await supabase
+    .from("missions")
+    .select("*")
+    .eq("code", code)
+    .maybeSingle();
+  if (error || !data) return null;
+  return buildMissionData(data);
+}
+
+function buildMissionData(data: any): MissionData {
+  return {
+    id: data.id,
+    code: data.code ?? String(data.number),
+    number: data.number,
+    active: data.active ?? true,
+    ordre: data.ordre ?? 1,
+    title: data.title,
+    objective: data.objective ?? "",
+    estimated_duration_minutes: data.estimated_duration_minutes ?? 30,
+    why: data.pourquoi ?? "",
+    exemple_avant: data.exemple_avant ?? "",
+    exemple_apres: data.exemple_apres ?? "",
+    champs: data.champs ?? [],
+    criteres: data.criteres ?? [],
+    guide_outil: data.guide_outil ?? undefined,
+    prompts_ia: data.prompts_ia ?? undefined,
+    bonus_elite: data.bonus_elite ?? undefined,
+  };
 }
 
 export default async function MissionPage({ params }: { params: { id: string } }) {
@@ -65,191 +63,154 @@ export default async function MissionPage({ params }: { params: { id: string } }
 
   if (!user) redirect("/login");
 
-  // Use API route to bypass RLS issues
-  const apiRes = await fetch(
-    `${process.env.NEXT_PUBLIC_SUPABASE_URL!}/rest/v1/missions?id=eq.${params.id}&select=id,number,title,objective,estimated_duration_minutes,stage_id,stages(number,title)`,
-    {
-      headers: {
-        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-        "Content-Type": "application/json",
-      },
-      cache: "no-store",
-    }
-  );
-
-  if (!apiRes.ok) notFound();
-  const missionData = await apiRes.json();
-  const mission = missionData?.[0];
-  if (!mission) notFound();
-
-  // Get progress via API
-  const progressRes = await fetch(
-    `${process.env.NEXT_PUBLIC_SUPABASE_URL!}/rest/v1/mission_progress?profile_id=eq.${user.id}&mission_id=eq.${params.id}&select=id,status`,
-    {
-      headers: {
-        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-        "Content-Type": "application/json",
-      },
-      cache: "no-store",
-    }
-  );
-  const progressList = await progressRes.json();
-  const progress = progressList?.[0] ?? null;
-  const status = toMissionStatus(progress?.status);
-
-  // Get submissions via API
-  let submissions: SubmissionRow[] = [];
-  if (progress) {
-    const subRes = await fetch(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL!}/rest/v1/mission_submissions?mission_progress_id=eq.${progress.id}&select=id,contenu,statut,feedback_coach,created_at,updated_at&order=created_at.desc`,
-      {
-        headers: {
-          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-          "Content-Type": "application/json",
-        },
-        cache: "no-store",
-      }
-    );
-    submissions = await subRes.json();
+  // Fetch mission by code first (e.g. "1.1"), then by id as fallback
+  let mission: MissionData | null = await fetchMissionByCodeRaw(supabase, params.id);
+  if (!mission) {
+    mission = await fetchMissionRaw(supabase, params.id);
   }
 
-  // Get resources via API
-  const resourcesRes = await fetch(
-    `${process.env.NEXT_PUBLIC_SUPABASE_URL!}/rest/v1/resources?stage_id=eq.${mission.stage_id}&select=id,slug,title,description&order=order_index.asc`,
-    {
-      headers: {
-        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-        "Content-Type": "application/json",
-      },
-      cache: "no-store",
-    }
+  if (!mission) {
+    return (
+      <div className="mx-auto max-w-2xl px-6 py-20 text-center">
+        <p className="text-lg font-semibold text-error">Mission introuvable</p>
+        <a href="/dashboard" className="mt-4 inline-block text-sm text-ochre hover:underline">
+          ← Retour au dashboard
+        </a>
+      </div>
+    );
+  }
+
+  // Fetch all stages with their missions for lock checks
+  const { data: stages } = await supabase
+    .from("stages")
+    .select("id, number, title, missions(id, code, number, order_index, title, objective, estimated_duration_minutes, ordre, active, pourquoi, exemple_avant, exemple_apres, champs, criteres, guide_outil, prompts_ia, bonus_elite)")
+    .order("order_index");
+
+  // Fetch user's progress for all missions
+  const { data: progressRows } = await supabase
+    .from("mission_progress")
+    .select("mission_id, status")
+    .eq("profile_id", user.id);
+
+  const progressMap = new Map<string, string>((progressRows ?? []).map((r: any) => [r.mission_id, r.status]));
+
+  // Find this mission's stage
+  const missionStage = (stages ?? []).find((s: any) =>
+    s.missions?.some((m: any) => m.id === mission!.id || m.code === mission!.code)
   );
-  const allResources: ResourceRow[] = await resourcesRes.json();
 
-  const lastSubmission = submissions[0] ?? null;
-  const blockedReason = submissionBlockedReason(status);
+  let lockState: LockState = { locked: false, reason: null, linkHref: null };
 
-  const statusIcon = {
-    a_faire: <AlertCircle className="h-4 w-4 text-secondary" />,
-    en_cours: <Clock className="h-4 w-4 text-ochre" />,
-    soumis: <FileText className="h-4 w-4 text-ochre" />,
-    a_corriger: <AlertCircle className="h-4 w-4 text-error" />,
-    valide: <CheckCircle2 className="h-4 w-4 text-success" />,
-  }[status] ?? <AlertCircle className="h-4 w-4 text-secondary" />;
+  // Rule: mission inactive → blocked
+  if (mission.active === false) {
+    lockState = { locked: true, reason: null, linkHref: "/dashboard" };
+  }
+
+  // Rule: previous stage not validated → locked
+  if (!lockState.locked && missionStage) {
+    const stageNumber = missionStage.number;
+    const previousStage = (stages ?? []).find((s: any) => s.number === stageNumber - 1);
+
+    if (previousStage) {
+      const prevMissions = previousStage.missions ?? [];
+      if (!isStageValidated(prevMissions, progressMap)) {
+        const nextPrevMissionId = getNextMissionId(prevMissions, progressMap);
+        lockState = {
+          locked: true,
+          reason: `Étape ${String(previousStage.number).padStart(2, "0")} — ${previousStage.title}`,
+          linkHref: nextPrevMissionId ? `/missions/${nextPrevMissionId}` : `/dashboard`,
+        };
+      }
+    }
+  }
+
+  // Rule: same-stage mission with lower ordre not validated → blocked
+  if (!lockState.locked && missionStage && missionStage.missions) {
+    const sortedMissions = [...missionStage.missions].sort((a: any, b: any) => (a.ordre ?? 0) - (b.ordre ?? 0));
+    const currentOrdre = mission.ordre ?? 0;
+    for (const m of sortedMissions) {
+      if ((m.ordre ?? 0) < currentOrdre && m.active !== false && progressMap.get(m.id) !== "valide") {
+        lockState = {
+          locked: true,
+          reason: `Terminez d'abord la mission ${m.code ?? `#${m.number}`}`,
+          linkHref: `/missions/${m.code ?? m.id}`,
+        };
+        break;
+      }
+    }
+  }
+
+  // Check Elite subscription for bonus_elite
+  let isElite = false;
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (profile?.role === "admin" || profile?.role === "coach") {
+    isElite = true;
+  } else {
+    const { data: sub } = await supabase
+      .from("subscriptions")
+      .select("plan")
+      .eq("profile_id", user.id)
+      .gt("expires_at", new Date().toISOString())
+      .order("expires_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (sub?.plan === "elite") {
+      isElite = true;
+    }
+  }
+
+  // Fetch validated submissions for prompt variables
+  const promptVariableMap: PromptVariableMap = {};
+  if (mission.prompts_ia) {
+    const missionCodes = new Set<string>();
+    for (const p of mission.prompts_ia) {
+      const match = p.prompt.match(/\{\{(\d+\.\d+)\.[^}]+\}\}/g);
+      if (match) {
+        for (const m of match) {
+          const code = m.replace(/\{\{([^.]+)\..+\}\}/, "$1");
+          missionCodes.add(code);
+        }
+      }
+    }
+    for (const code of missionCodes) {
+      const refMission = await fetchMissionByCodeRaw(supabase, code);
+      if (refMission) {
+        const { data: refProgress } = await supabase
+          .from("mission_progress")
+          .select("id")
+          .eq("mission_id", refMission.id)
+          .eq("profile_id", user.id)
+          .maybeSingle();
+        if (refProgress?.id) {
+          const { data: refSub } = await supabase
+            .from("mission_submissions")
+            .select("reponses")
+            .eq("mission_progress_id", refProgress.id)
+            .eq("statut", "valide")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (refSub?.reponses) {
+            promptVariableMap[code] = refSub.reponses as Record<string, string | string[]>;
+          }
+        }
+      }
+    }
+  }
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-10 pb-24 sm:pb-10">
-      <Link href="/dashboard" className="mb-8 inline-flex items-center gap-1.5 text-sm font-medium text-ochre hover:underline">
-        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
-        Retour à mon parcours
-      </Link>
-
-      <div className="mb-8">
-        <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-ochre">
-          Étape {mission.stages?.number ?? mission.number} · {mission.stages?.title ?? "Mon Parcours"}
-        </p>
-        <div className="flex items-center gap-3">
-          {statusIcon}
-          <h1 className="t-display-mid text-[clamp(1.5rem,4vw,2.25rem)] text-dark">{mission.title}</h1>
-        </div>
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <Badge tone={MISSION_STATUS_TONE[status]}>{MISSION_STATUS_LABELS[status]}</Badge>
-          <span className="flex items-center gap-1.5 text-sm text-secondary">
-            <Clock className="h-3.5 w-3.5" />
-            Durée estimée : {mission.estimated_duration_minutes} min
-          </span>
-        </div>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 mb-6">
-        <PremiumCard title="Objectif de la mission">
-          <p className="text-[1.0625rem] leading-relaxed text-dark">{mission.objective}</p>
-        </PremiumCard>
-
-        {allResources.length > 0 ? (
-          <PremiumCard title="Guide pratique" subtitle={`${allResources.length} ressource(s)`} glow>
-            <div className="space-y-3">
-              {allResources.slice(0, 2).map((resource) => (
-                <Link
-                  key={resource.id}
-                  href={`/ressources/${resource.slug}`}
-                  className="group flex items-start gap-3 rounded-[2px] border border-dark/8 p-3 transition-colors hover:border-ochre/30 hover:bg-paper/50"
-                >
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[2px] bg-gold/15">
-                    <BookOpen className="h-4 w-4 text-ochre" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-dark group-hover:text-ochre transition-colors truncate">{resource.title}</p>
-                    <p className="mt-0.5 text-xs text-secondary line-clamp-2">{resource.description}</p>
-                  </div>
-                  <ArrowRight className="mt-1 h-4 w-4 text-secondary/50 shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:text-ochre" />
-                </Link>
-              ))}
-              {allResources.length > 2 && (
-                <Link href="/ressources" className="block text-xs font-medium text-ochre hover:underline text-center pt-1">
-                  Voir toutes les ressources →
-                </Link>
-              )}
-            </div>
-          </PremiumCard>
-        ) : (
-          <PremiumCard title="Guide pratique">
-            <p className="text-sm text-secondary">Consultez la section Ressources du menu pour les guides.</p>
-          </PremiumCard>
-        )}
-      </div>
-
-      {lastSubmission?.feedback_coach && (
-        <PremiumCard title="Retour de votre coach" className="mb-6 border-l-[3px] border-l-gold" subtitle={`Reçu le ${formatDateTime(lastSubmission.updated_at)}`}>
-          <p className="whitespace-pre-wrap text-[1.0625rem] leading-relaxed text-dark">{lastSubmission.feedback_coach}</p>
-        </PremiumCard>
-      )}
-
-      <PremiumCard
-        title={status === "a_corriger" ? "Renvoyer mon livrable" : "Soumettre mon livrable"}
-        subtitle={status === "a_corriger" ? "Votre coach a demandé des modifications." : "Décrivez votre livrable ou collez le lien."}
-        className="mb-6"
-      >
-        {canSubmitMission(status) ? (
-          <MissionSubmissionForm
-            missionId={mission.id}
-            missionProgressId={progress?.id ?? null}
-            isCorrection={status === "a_corriger"}
-            missionTitle={mission.title}
-          />
-        ) : (
-          <div className="flex items-center gap-2 text-sm text-secondary">
-            <AlertCircle className="h-4 w-4 shrink-0" />
-            {blockedReason}
-          </div>
-        )}
-      </PremiumCard>
-
-      {submissions.length > 0 && (
-        <PremiumCard title="Historique de mes soumissions" subtitle={`${submissions.length} soumission(s)`}>
-          <ol className="space-y-4">
-            {submissions.map((submission, index) => (
-              <li key={submission.id} className={`relative pl-6 ${index < submissions.length - 1 ? "pb-4 border-b border-dark/6" : ""}`}>
-                <span className={`absolute left-0 top-1.5 h-3 w-3 rounded-full border-2 ${submission.statut === "valide" ? "border-success bg-success" : submission.statut === "a_corriger" ? "border-error bg-error" : "border-ochre bg-paper"}`} />
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge tone={SUBMISSION_TONE[submission.statut]}>{SUBMISSION_LABELS[submission.statut]}</Badge>
-                  <span className="text-xs text-secondary">{formatDateTime(submission.created_at)}</span>
-                </div>
-                <p className="mt-2 whitespace-pre-wrap break-words text-sm text-dark">{submission.contenu}</p>
-                {submission.feedback_coach && (
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-secondary italic">Coach : {submission.feedback_coach}</p>
-                )}
-              </li>
-            ))}
-          </ol>
-        </PremiumCard>
-      )}
-    </div>
+    <MissionContent
+      mission={mission}
+      user={user}
+      lockState={lockState}
+      progressMap={progressMap}
+      isElite={isElite}
+      promptVariableMap={promptVariableMap}
+    />
   );
 }

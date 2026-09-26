@@ -71,6 +71,16 @@ export default function OnboardingPage() {
       return;
     }
 
+    try {
+      await fetch("/api/onboarding/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ business_name: form.businessName, full_name: form.businessName }),
+      });
+    } catch {
+      // silencieux
+    }
+
     router.push("/diagnostic");
     router.refresh();
   }

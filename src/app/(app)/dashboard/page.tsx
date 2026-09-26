@@ -9,6 +9,7 @@ import {
   toMissionStatus,
 } from "@/lib/missions/status";
 import { deriveCohortStatus } from "@/lib/cohorts/status";
+import { isStageValidated, getNextMissionId } from "@/lib/missions/stage-lock";
 import { ArrowRight, Play, Sparkles, CheckCircle2, Trophy } from "lucide-react";
 
 const COHORT_STATUS_LABELS = {
@@ -77,7 +78,7 @@ export default async function DashboardPage() {
 
   const { data: stages } = await supabase
     .from("stages")
-    .select("id, number, slug, title, missions(id, number, title)")
+    .select("id, number, slug, title, order_index, missions(id, code, number, order_index, title, objective, estimated_duration_minutes, ordre, active, pourquoi, exemple_avant, exemple_apres, champs, criteres, guide_outil, prompts_ia, bonus_elite)")
     .order("order_index");
 
   const { data: progressRows } = await supabase
@@ -85,23 +86,51 @@ export default async function DashboardPage() {
     .select("mission_id, status")
     .eq("profile_id", user.id);
 
-  // Graceful fallback if tables don't exist yet
-  const stagesArray = (stages ?? []) as any[];
-  const progressMap = new Map((progressRows ?? []).map((row: any) => [row.mission_id, row.status]));
-  const allMissions = stagesArray.flatMap((stage: any) => stage?.missions ?? []);
-  const validatedCount = allMissions.filter((m: any) => progressMap.get(m?.id) === "valide").length;
-  const overallProgress = allMissions.length > 0 ? (validatedCount / allMissions.length) * 100 : 0;
+  const progressMap = new Map<string, string>((progressRows ?? []).map((row: any) => [row.mission_id, row.status]));
 
-  // Find current (first non-validated) mission
-  const currentMission = allMissions.find((m: any) => progressMap.get(m.id) !== "valide");
+  // Build sorted missions: by stage.number asc, then mission.ordre asc
+  const stagesArray = (stages ?? []) as any[];
+  const allMissions = stagesArray
+    .flatMap((stage: any) => (stage.missions ?? []).map((m: any) => ({ ...m, _stageNumber: stage.number })))
+    .sort((a: any, b: any) => a._stageNumber - b._stageNumber || (a.ordre ?? 0) - (b.ordre ?? 0));
+
+  // Count only active missions for progress
+  const activeMissions = allMissions.filter((m: any) => m.active !== false);
+  const validatedCount = activeMissions.filter((m: any) => progressMap.get(m.id) === "valide").length;
+  const overallProgress = activeMissions.length > 0 ? (validatedCount / activeMissions.length) * 100 : 0;
+
+  // Find current mission using getNextMissionId on each stage
+  let currentMission: any = null;
+  let currentStage: any = null;
+
+  for (const stage of stagesArray) {
+    const stageMissions = stage.missions ?? [];
+    // Check if previous stage is validated
+    const stageIndex = stage.number - 1;
+    const prevStage = stagesArray.find((s: any) => s.number === stageIndex);
+    if (prevStage) {
+      const prevMissions = prevStage.missions ?? [];
+      if (!isStageValidated(prevMissions, progressMap)) {
+        // Previous stage not validated — this stage is locked
+        continue;
+      }
+    }
+    // Check if this stage's missions are all validated
+    if (isStageValidated(stageMissions, progressMap)) {
+      continue; // Stage fully completed
+    }
+    // Get next mission in this stage
+    const nextId = getNextMissionId(stageMissions, progressMap);
+    if (nextId) {
+      currentMission = stageMissions.find((m: any) => m.id === nextId);
+      currentStage = stage;
+      break;
+    }
+  }
+
   const currentStatus = currentMission
     ? toMissionStatus(progressMap.get(currentMission.id))
     : null;
-
-  // Find which stage the current mission belongs to
-  const currentStage = (stages ?? []).find((stage: any) =>
-    stage.missions.some((m: any) => m.id === currentMission?.id)
-  );
 
   // Check notifications count
   const { data: notifRows } = await supabase
@@ -111,9 +140,9 @@ export default async function DashboardPage() {
     .eq("read", false);
   const unreadCount = (notifRows ?? []).length;
 
-  // Compute stage-level stats
-  const stageStats = (stages ?? []).map((stage: any) => {
-    const stageMissions = stage.missions;
+  // Compute stage-level stats — only count active missions
+  const stageStats = stagesArray.map((stage: any) => {
+    const stageMissions = (stage.missions ?? []).filter((m: any) => m.active !== false);
     const completed = stageMissions.filter((m: any) => progressMap.get(m.id) === "valide").length;
     const total = stageMissions.length;
     return { number: stage.number, title: stage.title, completed, total };
@@ -206,7 +235,7 @@ export default async function DashboardPage() {
               </p>
             </div>
             <Link
-              href={`/missions/${currentMission.id}`}
+              href={`/missions/${currentMission.code ?? currentMission.id}`}
               className="group flex shrink-0 items-center gap-2 rounded-[2px] bg-gold px-6 py-3.5 text-sm font-semibold text-ink transition-all hover:bg-amber hover:shadow-[0_0_24px_rgba(240,185,40,0.4)]"
             >
               {currentStatus === "a_faire" || currentStatus === "en_cours" ? (
@@ -278,7 +307,7 @@ export default async function DashboardPage() {
         <StatBadge label="Progression" value={`${Math.round(overallProgress)}%`} sub="du parcours" />
         <StatBadge
           label="Missions validées"
-          value={`${validatedCount}/${allMissions.length}`}
+          value={`${validatedCount}/${activeMissions.length}`}
           sub="missions complétées"
           tone="gold"
         />
@@ -288,7 +317,7 @@ export default async function DashboardPage() {
       <PremiumCard className="mb-6" glow>
         <StepIndicator
           current={validatedCount}
-          total={allMissions.length}
+          total={activeMissions.length}
           stages={(stages ?? []).map((s: any) => ({ number: s.number, title: s.title }))}
         />
       </PremiumCard>
@@ -300,7 +329,7 @@ export default async function DashboardPage() {
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-ochre/10">
                 <svg className="h-5 w-5 text-ochre" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012 -2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                 </svg>
               </div>
               <div>

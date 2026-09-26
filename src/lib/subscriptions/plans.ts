@@ -5,6 +5,7 @@ export interface Plan {
   name: string;
   amountXof: number;
   avantages: string[];
+  delaiRetourHeures: number;
 }
 
 // Source unique des prix et avantages — la landing page (Pricing.tsx), la page
@@ -15,6 +16,7 @@ export const PLANS: Record<PlanKey, Plan> = {
     key: "starter",
     name: "Starter",
     amountXof: 149900,
+    delaiRetourHeures: 72,
     avantages: [
       "Le parcours complet en 8 étapes et 22 missions guidées",
       "Un retour de votre coach sur chaque livrable, sous 72 h",
@@ -27,6 +29,7 @@ export const PLANS: Record<PlanKey, Plan> = {
     key: "pro",
     name: "Pro",
     amountXof: 249900,
+    delaiRetourHeures: 48,
     avantages: [
       "Tout Starter inclus",
       "Retour du coach sous 48 h",
@@ -38,6 +41,7 @@ export const PLANS: Record<PlanKey, Plan> = {
     key: "elite",
     name: "Elite",
     amountXof: 349900,
+    delaiRetourHeures: 24,
     avantages: [
       "Tout Pro inclus",
       "Votre tunnel de vente premium, prêt à importer dans Systeme.io",
