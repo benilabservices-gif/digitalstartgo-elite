@@ -35,20 +35,18 @@ const DESORDRE = [
   [100, 30, 140, 42],
   [130, 70, 165, 80],
   [160, 110, 195, 118],
-  [180, 145, 215, 152],
+  [180, 145, 215, 168],
   [20, 50, 55, 65],
   [70, 90, 105, 98],
   [120, 130, 155, 138],
   [170, 160, 205, 168],
 ] as const;
 
-function easeOutCubic(t: number): number {
-  return 1 - Math.pow(1 - t, 3);
-}
+// Positions finales des traits de l'après (droite)
+const ORDRE_Y = [20, 42, 60, 80, 100, 120, 140, 155, 30, 70, 110, 145, 50, 90, 130, 160] as const;
 
 export function Transformation() {
   const ref = useRef<HTMLDivElement>(null);
-  const [revealed, setRevealed] = useState(false);
   const [svgProgress, setSvgProgress] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
 
@@ -70,13 +68,12 @@ export function Transformation() {
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          setRevealed(true);
           let start: number;
           function animate(now: number) {
             if (!start) start = now;
-            const raw = (now - start) / 1200;
-            setSvgProgress(Math.min(easeOutCubic(raw), 1));
-            if (raw < 1) requestAnimationFrame(animate);
+            const progress = Math.min((now - start) / 1200, 1);
+            setSvgProgress(progress);
+            if (progress < 1) requestAnimationFrame(animate);
           }
           requestAnimationFrame(animate);
           observer.disconnect();
@@ -97,24 +94,24 @@ export function Transformation() {
       </h2>
 
       {/* Schéma SVG animé */}
-      <div className="mt-12 rounded-[2px] border border-dark/8 bg-white p-4 sm:p-6 shadow-sm">
+      <div ref={ref} className="mt-12 rounded-[2px] border border-dark/8 bg-white p-4 sm:p-6 shadow-sm">
         <svg viewBox="0 0 620 180" className="h-auto w-full" role="img" aria-label="Schéma de transformation">
-          {/* Lignes de désordre — animation de la gauche vers la ligne centrale */}
+          {/* Lignes de désordre — animation de la gauche vers x=248, y=90 */}
           {DESORDRE.map(([x1, y1, x2, y2], i) => {
-            const t = progress;
-            const endX = 248 + (x1 - 248) * 0.3;
-            const curX2 = x1 + (endX - x1) * easeOutCubic(t);
-            const midY = y1 + (90 - y1) * 0.5;
-            const curY2 = y1 + (midY - y1) * easeOutCubic(t);
+            // Position finale : lignes convergent vers x=248, y=90
+            const endX = 248;
+            const endY = 90;
+            const curX2 = x1 + (endX - x1) * progress;
+            const curY2 = y1 + (endY - y1) * progress;
             return (
               <line
                 key={i}
                 x1={x1}
                 y1={y1}
-                x2={t < 0.9 ? curX2 : 248}
-                y2={t < 0.9 ? curY2 : 90}
+                x2={curX2}
+                y2={curY2}
                 stroke="#4B5772"
-                strokeOpacity={0.3 + 0.25 * (1 - t)}
+                strokeOpacity={0.3 + 0.25 * (1 - progress)}
                 strokeWidth="1.5"
                 strokeLinecap="round"
               />
@@ -124,21 +121,22 @@ export function Transformation() {
           {/* Ligne séparatrice */}
           <rect x="248" y="0" width="7" height="180" fill="#F0B928" />
 
-          {/* Lignes de l'après — animation de la ligne centrale vers la droite */}
-          {[20, 42, 60, 80, 100, 120, 140, 155].map((y, i) => {
+          {/* Lignes de l'après — animation de x=255 vers x=596, y=90 */}
+          {ORDRE_Y.map((y, i) => {
             const lineStart = 255;
             const targetX = 596;
-            const t = progress;
-            const curX = lineStart + (targetX - lineStart) * easeOutCubic(t);
+            const targetY = 90;
+            const curX = lineStart + (targetX - lineStart) * progress;
+            const curY = y + (targetY - y) * progress;
             return (
               <line
                 key={i}
                 x1={lineStart}
                 y1={y}
                 x2={curX}
-                y2={t >= 1 ? 90 : y}
-                stroke={t >= 0.8 ? "#101D38" : "#4B5772"}
-                strokeOpacity={t >= 0.8 ? 0.8 : 0.4}
+                y2={curY}
+                stroke={progress >= 0.8 ? "#101D38" : "#4B5772"}
+                strokeOpacity={progress >= 0.8 ? 0.8 : 0.4}
                 strokeWidth="1.5"
                 strokeLinecap="round"
               />
@@ -154,31 +152,40 @@ export function Transformation() {
           )}
         </svg>
 
-        {/* Labels sous le schéma — alignés gauche/droite */}
+        {/* Labels sous le schéma */}
         <div className="mt-3 flex justify-between px-2">
           <span className="text-xs font-semibold text-error">avant</span>
           <span className="text-xs font-semibold text-ochre">après</span>
         </div>
       </div>
 
-      {/* Paires Avant / Après */}
-      {/* Desktop : grille 2 colonnes, chaque paire sur une ligne */}
-      <div className="mt-10 hidden gap-6 sm:grid sm:grid-cols-2">
-        {Paires.map((pair, i) => (
-          <div key={i} className="flex gap-4">
-            <div className="flex-1">
-              <p className="mb-1.5 text-xs font-semibold text-error">Avant</p>
-              <p className="text-sm text-secondary">{pair.avant}</p>
-            </div>
-            <div className="flex-1">
-              <p className="mb-1.5 text-xs font-semibold text-success">Après</p>
-              <p className="text-sm text-dark">{pair.apres}</p>
-            </div>
-          </div>
-        ))}
+      {/* Desktop : grille 2 colonnes avec en-têtes uniques */}
+      <div className="mt-10 hidden sm:grid sm:grid-cols-2">
+        <div>
+          <p className="t-meta mb-3 text-[0.75rem] text-error">Avant</p>
+          <ul className="flex flex-col gap-2.5 text-[1.0625rem] text-secondary">
+            {Paires.map((pair) => (
+              <li key={pair.avant} className="flex items-start gap-2">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-error/60" />
+                {pair.avant}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <p className="t-meta mb-3 text-[0.75rem] text-success">Après</p>
+          <ul className="flex flex-col gap-2.5 text-[1.0625rem] text-dark">
+            {Paires.map((pair) => (
+              <li key={pair.apres} className="flex items-start gap-2">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
+                {pair.apres}
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
 
-      {/* Mobile : une carte par paire */}
+      {/* Mobile : cartes empilées */}
       <div className="mt-6 space-y-3 sm:hidden">
         {Paires.map((pair, i) => (
           <div key={i} className="rounded-[2px] border border-dark/10 bg-white p-4 shadow-sm">
