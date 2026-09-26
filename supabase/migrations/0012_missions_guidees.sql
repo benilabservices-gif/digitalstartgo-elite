@@ -1,4 +1,4 @@
--- Migration 0012 : Missions guidées — colonnes et données initiales
+-- Migration 0012 : Missions guidées — colonnes, contraintes et seed
 -- ============================================================
 
 -- 1. Nouvelles colonnes sur missions
@@ -17,15 +17,19 @@ ALTER TABLE missions ADD COLUMN IF NOT EXISTS bonus_elite text;
 -- 2. Nouvelle colonne sur mission_submissions
 ALTER TABLE mission_submissions ADD COLUMN IF NOT EXISTS reponses jsonb;
 
--- 3. Passer l'ancienne mission 1 à inactive (elle reste en base)
-UPDATE missions SET active = false WHERE number = 1 AND stage_id = 'a9b0c922-6bf6-4d3e-9e66-b7efc7a54020';
+-- 3. Remplir code et ordre pour les 8 missions existantes
+--    code = numéro d'étape, ordre = 1 (une seule mission par étape à l'origine)
+UPDATE missions SET code = number::text, ordre = 1 WHERE code IS NULL;
 
--- 4. Créer les missions 1.1 et 1.2
--- Mission 1.1 — Faire l'état des lieux
-INSERT INTO missions (id, stage_id, code, number, title, objective, estimated_duration_minutes, ordre, active, pourquoi, exemple_avant, exemple_apres, champs, criteres)
+-- 4. Passer l'ancienne mission de l'étape 1 à inactive
+UPDATE missions SET active = false
+WHERE number = 1
+  AND stage_id = (SELECT id FROM stages WHERE number = 1);
+
+-- 5. Créer les missions 1.1 et 1.2 (UUID auto-généré par gen_random_uuid())
+INSERT INTO missions (stage_id, code, number, title, objective, estimated_duration_minutes, ordre, active, pourquoi, exemple_avant, exemple_apres, champs, criteres)
 VALUES (
-  'm1-1-etat-lieu',
-  'a9b0c922-6bf6-4d3e-9e66-b7efc7a54020',
+  (SELECT id FROM stages WHERE number = 1),
   '1.1',
   1,
   'Faire l''état des lieux de votre activité',
@@ -58,11 +62,9 @@ VALUES (
   ]'
 );
 
--- Mission 1.2 — Fixer votre objectif à 90 jours
-INSERT INTO missions (id, stage_id, code, number, title, objective, estimated_duration_minutes, ordre, active, pourquoi, exemple_avant, exemple_apres, champs, criteres)
+INSERT INTO missions (stage_id, code, number, title, objective, estimated_duration_minutes, ordre, active, pourquoi, exemple_avant, exemple_apres, champs, criteres)
 VALUES (
-  'm1-2-objectif-90j',
-  'a9b0c922-6bf6-4d3e-9e66-b7efc7a54020',
+  (SELECT id FROM stages WHERE number = 1),
   '1.2',
   2,
   'Fixer votre objectif à 90 jours',
@@ -87,9 +89,13 @@ VALUES (
   ]'
 );
 
--- 5. Test de vérification (transaction annulée)
+-- 6. Supprimer l'ancienne contrainte unique sur number et ajouter les nouvelles
+ALTER TABLE missions DROP CONSTRAINT IF EXISTS missions_number_key;
+ALTER TABLE missions ADD CONSTRAINT missions_code_key UNIQUE (code);
+ALTER TABLE missions ADD CONSTRAINT missions_stage_ordre_key UNIQUE (stage_id, ordre);
+
+-- 7. Test de vérification (transaction annulée)
 -- À lancer après fusion pour valider :
 -- BEGIN;
---   SELECT code, active, titre FROM missions WHERE stage_id = 'a9b0c922-6bf6-4d3e-9e66-b7efc7a54020' ORDER BY ordre;
+--   SELECT code, number, active, titre FROM missions ORDER BY stage_id, ordre;
 -- ROLLBACK;
--- Attendu : mission 1 (inactive), 1.1 (active), 1.2 (active)

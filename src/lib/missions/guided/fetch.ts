@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/client";
 import type { MissionData } from "./types";
 
 export async function fetchMission(missionId: string): Promise<MissionData | null> {
@@ -11,6 +11,23 @@ export async function fetchMission(missionId: string): Promise<MissionData | nul
 
   if (error || !data) return null;
 
+  return buildMissionData(data);
+}
+
+export async function fetchMissionByCode(code: string): Promise<MissionData | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("missions")
+    .select("*")
+    .eq("code", code)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  return buildMissionData(data);
+}
+
+function buildMissionData(data: any): MissionData {
   return {
     id: data.id,
     code: data.code ?? String(data.number),
@@ -50,4 +67,22 @@ export async function fetchLastValidatedSubmission(missionId: string, profileId:
     .maybeSingle();
 
   return data;
+}
+
+/**
+ * Remplace les variables {{code.champ}} dans un prompt par les réponses du participant.
+ */
+export function replacePromptVariables(
+  prompt: string,
+  reponses: Record<string, string | string[]>
+): string {
+  return prompt.replace(/\{\{([^}]+)\}\}/g, (_match, varName) => {
+    // varName est du type "2.1.promesse" → on extrait la cle après le dernier point
+    const parts = varName.split(".");
+    const cle = parts[parts.length - 1];
+    const val = reponses[cle];
+    if (val === undefined) return "[à compléter]";
+    if (Array.isArray(val)) return val.join("\n• ");
+    return String(val);
+  });
 }
