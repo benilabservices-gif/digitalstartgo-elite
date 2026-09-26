@@ -165,7 +165,10 @@ export function SidebarNav({ role }: { role: ProfileRole }) {
         </p>
         <div className="flex flex-col gap-0.5">
           {items.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+            // Pour /admin, actif uniquement sur la racine exacte
+            const isActive = item.href === "/admin"
+              ? pathname === "/admin"
+              : pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link
                 key={item.href}

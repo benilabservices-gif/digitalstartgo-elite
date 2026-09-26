@@ -81,7 +81,7 @@ set search_path = public, pg_temp
 as $$
 begin
   -- Vérifier que l'appelant est admin
-  if not exists (select 1 from profiles where id = auth.uid() and role = 'admin') then
+  if not public.is_admin() then
     raise exception 'Unauthorized: only admins can list members';
   end if;
   
