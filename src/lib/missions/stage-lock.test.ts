@@ -42,6 +42,17 @@ describe("isStageValidated", () => {
   it("retourne true s'il n'y a pas de missions", () => {
     expect(isStageValidated([], new Map())).toBe(true);
   });
+
+  it("retourne true quand une mission inactive est validée même si une active ne l'est pas", () => {
+    // Règle : si une mission inactive est validée, l'étape compte comme validée
+    // (permet de ne pas re-verrouiller les participants existants)
+    const missions = [
+      { id: "old", active: false },
+      { id: "m1", active: true },
+    ];
+    const progress = new Map([["old", "valide"]]);
+    expect(isStageValidated(missions, progress)).toBe(true);
+  });
 });
 
 describe("getNextMissionId", () => {
@@ -73,3 +84,4 @@ describe("getNextMissionId", () => {
     expect(getNextMissionId(missions, progress)).toBe("m1");
   });
 });
+
