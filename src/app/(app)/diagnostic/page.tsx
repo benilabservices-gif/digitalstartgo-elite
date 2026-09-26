@@ -13,6 +13,8 @@ export default function DiagnosticPage() {
   const [existingResult, setExistingResult] = useState<{ score: number; priorities: string[] } | null>(null);
   const [missionStatus, setMissionStatus] = useState<string | null>(null);
   const [missionProgressId, setMissionProgressId] = useState<string | null>(null);
+  // Identifiant réel de la mission 1.1 (uuid), retrouvé par son code
+  const [mission11Id, setMission11Id] = useState<string | null>(null);
 
   useEffect(() => {
     async function checkExisting() {
@@ -56,6 +58,7 @@ export default function DiagnosticPage() {
           .maybeSingle();
 
         if (missionsData?.id) {
+          setMission11Id(missionsData.id as string);
           const { data: progress } = await supabase
             .from("mission_progress")
             .select("id, status")
@@ -151,7 +154,7 @@ export default function DiagnosticPage() {
               <>
                 <Button
                   className="w-full flex items-center justify-center gap-2"
-                  onClick={() => router.push("/missions/m1-1-etat-lieu")}
+                  onClick={() => router.push(mission11Id ? `/missions/${mission11Id}` : "/parcours/diagnostic")}
                 >
                   <FileText className="h-4 w-4" />
                   Voir mon livrable soumis
@@ -164,7 +167,7 @@ export default function DiagnosticPage() {
               <>
                 <Button
                   className="w-full flex items-center justify-center gap-2"
-                  onClick={() => router.push("/missions/m1-1-etat-lieu")}
+                  onClick={() => router.push(mission11Id ? `/missions/${mission11Id}` : "/parcours/diagnostic")}
                 >
                   <RotateCcw className="h-4 w-4" />
                   Corriger mon diagnostic
@@ -177,7 +180,7 @@ export default function DiagnosticPage() {
               <>
                 <Button
                   className="w-full flex items-center justify-center gap-2"
-                  onClick={() => router.push("/missions/m1-1-etat-lieu")}
+                  onClick={() => router.push(mission11Id ? `/missions/${mission11Id}` : "/parcours/diagnostic")}
                 >
                   <Play className="h-4 w-4" />
                   Commencer mon diagnostic
@@ -214,7 +217,7 @@ export default function DiagnosticPage() {
         </p>
         <Button
           className="mt-6 w-full flex items-center justify-center gap-2"
-          onClick={() => router.push("/missions/m1-1-etat-lieu")}
+          onClick={() => router.push(mission11Id ? `/missions/${mission11Id}` : "/parcours/diagnostic")}
         >
           <Play className="h-4 w-4" />
           Faire mon état des lieux
