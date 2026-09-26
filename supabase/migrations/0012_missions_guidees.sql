@@ -22,15 +22,19 @@ ALTER TABLE mission_submissions ADD COLUMN IF NOT EXISTS reponses jsonb;
 UPDATE missions SET code = number::text, ordre = 1 WHERE code IS NULL;
 
 -- 4. Passer l'ancienne mission de l'étape 1 à inactive
-UPDATE missions SET active = false
+UPDATE missions SET active = false, ordre = 0
 WHERE number = 1
   AND stage_id = (SELECT id FROM stages WHERE number = 1);
 
+-- 4 bis. La contrainte UNIQUE (number) doit disparaître AVANT d'insérer 1.1 / 1.2
+ALTER TABLE missions DROP CONSTRAINT IF EXISTS missions_number_key;
+
 -- 5. Créer les missions 1.1 et 1.2 (UUID auto-généré par gen_random_uuid())
-INSERT INTO missions (stage_id, code, number, title, objective, estimated_duration_minutes, ordre, active, pourquoi, exemple_avant, exemple_apres, champs, criteres)
+INSERT INTO missions (stage_id, code, number, order_index, title, objective, estimated_duration_minutes, ordre, active, pourquoi, exemple_avant, exemple_apres, champs, criteres)
 VALUES (
   (SELECT id FROM stages WHERE number = 1),
   '1.1',
+  1,
   1,
   'Faire l''état des lieux de votre activité',
   'Photographiez votre activité telle qu''elle est aujourd''hui : c''est le point de départ de tout le parcours.',
@@ -62,10 +66,11 @@ VALUES (
   ]'
 );
 
-INSERT INTO missions (stage_id, code, number, title, objective, estimated_duration_minutes, ordre, active, pourquoi, exemple_avant, exemple_apres, champs, criteres)
+INSERT INTO missions (stage_id, code, number, order_index, title, objective, estimated_duration_minutes, ordre, active, pourquoi, exemple_avant, exemple_apres, champs, criteres)
 VALUES (
   (SELECT id FROM stages WHERE number = 1),
   '1.2',
+  2,
   2,
   'Fixer votre objectif à 90 jours',
   'Sans ligne d''arrivée, impossible de savoir si le parcours vous fait progresser.',
@@ -90,12 +95,6 @@ VALUES (
 );
 
 -- 6. Supprimer l'ancienne contrainte unique sur number et ajouter les nouvelles
-ALTER TABLE missions DROP CONSTRAINT IF EXISTS missions_number_key;
 ALTER TABLE missions ADD CONSTRAINT missions_code_key UNIQUE (code);
 ALTER TABLE missions ADD CONSTRAINT missions_stage_ordre_key UNIQUE (stage_id, ordre);
 
--- 7. Test de vérification (transaction annulée)
--- À lancer après fusion pour valider :
--- BEGIN;
---   SELECT code, number, active, titre FROM missions ORDER BY stage_id, ordre;
--- ROLLBACK;
