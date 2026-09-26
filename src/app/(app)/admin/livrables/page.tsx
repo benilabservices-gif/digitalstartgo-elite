@@ -3,7 +3,7 @@ import { requireAdmin } from "@/lib/cohorts/admin";
 import { PremiumCard } from "@/components/app-ui/PremiumCard";
 import { formatDateTime } from "@/lib/missions/format";
 import { fetchParticipantNames } from "@/lib/missions/coach";
-import { Inbox, Clock, CheckCircle2, XCircle } from "lucide-react";
+import { Inbox, Clock } from "lucide-react";
 
 interface PendingSubmissionRow {
   id: string;
@@ -53,7 +53,7 @@ export default async function AdminLivrablesPage() {
       </div>
 
       {submissions.length > 0 ? (
-        <PremiumCard title={`File d&apos;attente · ${submissions.length} en attente`}>
+        <PremiumCard title={`File d'attente · ${submissions.length} en attente`}>
           <ol className="space-y-3">
             {submissions.map((submission, index) => {
               const mission = submission.mission_progress?.missions;

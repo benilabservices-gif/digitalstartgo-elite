@@ -7,29 +7,20 @@ import { Users, Clock, CheckCircle2, XCircle } from "lucide-react";
 interface ParticipantRow {
   id: string;
   business_name: string | null;
-  full_name: string | null;
   cohort_name: string | null;
-  current_stage: number | null;
-  last_submission_date: string | null;
+  current_stage_number: number | null;
+  current_stage_title: string | null;
   last_submission_status: string | null;
+  last_submission_date: string | null;
 }
 
 export default async function CoachParticipantsPage() {
   const { supabase } = await requireCoach();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
-  // Récupérer les cohortes du coach
-  const { data: coachCohorts } = await supabase
-    .from("cohort_coaches")
-    .select("cohort_id, cohort(id, name)")
-    .eq("coach_id", user?.id);
+  // Utiliser la fonction SQL coach_list_participants()
+  const { data: participantsData, error } = await supabase.rpc("coach_list_participants");
 
-  const cohortIds = (coachCohorts ?? []).map((c: any) => c.cohort_id);
-  const cohortMap = new Map((coachCohorts ?? []).map((c: any) => [c.cohort.id, c.cohort.name]));
-
-  if (cohortIds.length === 0) {
+  if (error) {
     return (
       <div className="mx-auto max-w-3xl px-6 py-10 pb-24 sm:pb-10">
         <Link href="/dashboard" className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-ochre hover:underline">
@@ -38,66 +29,15 @@ export default async function CoachParticipantsPage() {
           </svg>
           Retour au dashboard
         </Link>
-
-        <div className="mb-8">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-ochre">Espace coach</p>
-          <h1 className="t-display-mid text-[clamp(1.5rem,4vw,2.25rem)] text-dark">Mes participants</h1>
-        </div>
-
         <PremiumCard className="text-center py-12">
-          <Users className="mx-auto mb-4 h-12 w-12 text-secondary/30" />
-          <p className="text-lg font-semibold text-dark">Aucun participant</p>
-          <p className="mt-1 text-sm text-secondary">
-            Vous n&apos;êtes pas encore rattaché à une cohorte.
-          </p>
+          <p className="text-lg font-semibold text-error">Erreur</p>
+          <p className="mt-1 text-sm text-secondary">{error.message}</p>
         </PremiumCard>
       </div>
     );
   }
 
-  // Récupérer les participants avec leur progression
-  const { data: participantsData } = await supabase
-    .from("profiles")
-    .select(`
-      id,
-      business_name,
-      full_name,
-      cohort_id,
-      mission_progress!inner(mission:missions(id, stage_number))
-    `)
-    .in("cohort_id", cohortIds)
-    .eq("role", "participant");
-
-  // Group by profile and get latest submission
-  const rows: ParticipantRow[] = [];
-  
-  for (const p of (participantsData ?? []) as any[]) {
-    // Get current stage
-    const stages = p.mission_progress ?? [];
-    const currentStage = stages.length > 0 
-      ? Math.max(...stages.map((s: any) => s.mission?.stage_number ?? 0))
-      : null;
-
-    // Get last submission
-    const { data: submissions } = await supabase
-      .from("mission_submissions")
-      .select("created_at, statut")
-      .eq("profile_id", p.id)
-      .order("created_at", { ascending: false })
-      .limit(1);
-
-    const lastSubmission = submissions?.[0];
-
-    rows.push({
-      id: p.id,
-      business_name: p.business_name,
-      full_name: p.full_name,
-      cohort_name: p.cohort_id ? (cohortMap.get(p.cohort_id) ?? null) : null,
-      current_stage: currentStage,
-      last_submission_date: lastSubmission?.created_at ?? null,
-      last_submission_status: lastSubmission?.statut ?? null,
-    });
-  }
+  const rows = (participantsData ?? []) as ParticipantRow[];
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10 pb-24 sm:pb-10">
@@ -142,11 +82,11 @@ export default async function CoachParticipantsPage() {
                     <td className="py-3 pr-4">
                       <div className="flex items-center gap-3">
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink text-[0.6875rem] font-bold text-paper">
-                          {(row.business_name ?? row.full_name ?? "?").charAt(0).toUpperCase()}
+                          {(row.business_name ?? "?").charAt(0).toUpperCase()}
                         </div>
                         <div>
                           <p className="font-medium text-dark">
-                            {row.business_name ?? row.full_name ?? "—"}
+                            {row.business_name ?? "—"}
                           </p>
                         </div>
                       </div>
@@ -155,9 +95,9 @@ export default async function CoachParticipantsPage() {
                       {row.cohort_name ?? "—"}
                     </td>
                     <td className="py-3 pr-4">
-                      {row.current_stage ? (
+                      {row.current_stage_number ? (
                         <Badge tone="default">
-                          Étape {row.current_stage}
+                          Étape {row.current_stage_number} — {row.current_stage_title ?? ""}
                         </Badge>
                       ) : (
                         <span className="text-xs text-secondary">—</span>

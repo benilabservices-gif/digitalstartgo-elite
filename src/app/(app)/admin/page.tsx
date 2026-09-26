@@ -3,19 +3,27 @@ import { requireAdmin } from "@/lib/cohorts/admin";
 import { PremiumCard, StatBadge } from "@/components/app-ui/PremiumCard";
 import { Users, CheckCircle2, Clock, UserCog } from "lucide-react";
 
+interface MemberRow {
+  id: string;
+  email: string;
+  full_name: string | null;
+  business_name: string | null;
+  role: string;
+  cohort_id: string | null;
+  subscription_active: boolean;
+}
+
 export default async function AdminOverviewPage() {
   const { supabase } = await requireAdmin();
 
-  // Compter les inscrits
-  const { count: inscritsCount } = await supabase
-    .from("profiles")
-    .select("*", { count: "exact", head: true });
+  // Utiliser admin_list_members() pour avoir tous les membres avec leurs rôles
+  const { data: membersData } = await supabase.rpc("admin_list_members");
+  const members = (membersData ?? []) as MemberRow[];
 
-  // Compter les participants avec abonnement actif
-  const { count: abonnesCount } = await supabase
-    .from("subscriptions")
-    .select("*", { count: "exact", head: true })
-    .gt("expires_at", new Date().toISOString());
+  // Calculer les statistiques
+  const inscritsCount = members.length;
+  const coachsCount = members.filter((m) => m.role === "coach").length;
+  const abonnesCount = members.filter((m) => m.role === "participant" && m.subscription_active).length;
 
   // Compter les livrables en attente
   const { count: enAttenteCount } = await supabase
@@ -23,23 +31,17 @@ export default async function AdminOverviewPage() {
     .select("*", { count: "exact", head: true })
     .eq("statut", "soumis");
 
-  // Compter les coachs
-  const { count: coachsCount } = await supabase
-    .from("profiles")
-    .select("*", { count: "exact", head: true })
-    .eq("role", "coach");
-
   const stats = [
     {
       label: "Inscrits",
-      value: inscritsCount ?? 0,
+      value: inscritsCount,
       icon: Users,
       color: "text-blue-500",
       href: "/admin/membres",
     },
     {
       label: "Abonnés actifs",
-      value: abonnesCount ?? 0,
+      value: abonnesCount,
       icon: CheckCircle2,
       color: "text-green-500",
       href: "/admin/abonnements",
@@ -53,7 +55,7 @@ export default async function AdminOverviewPage() {
     },
     {
       label: "Coachs",
-      value: coachsCount ?? 0,
+      value: coachsCount,
       icon: UserCog,
       color: "text-purple-500",
       href: "/admin/membres",
