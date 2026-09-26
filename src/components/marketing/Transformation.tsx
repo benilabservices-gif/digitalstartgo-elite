@@ -159,29 +159,25 @@ export function Transformation() {
         </div>
       </div>
 
-      {/* Desktop : grille 2 colonnes avec en-têtes uniques */}
-      <div className="mt-10 hidden sm:grid sm:grid-cols-2">
-        <div>
-          <p className="t-meta mb-3 text-[0.75rem] text-error">Avant</p>
-          <ul className="flex flex-col gap-2.5 text-[1.0625rem] text-secondary">
-            {Paires.map((pair) => (
-              <li key={pair.avant} className="flex items-start gap-2">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-error/60" />
-                {pair.avant}
-              </li>
-            ))}
-          </ul>
+      {/* Desktop : en-têtes uniques + une ligne par paire */}
+      <div className="mt-10 hidden sm:block">
+        <div className="mb-3 grid grid-cols-2 gap-x-10">
+          <p className="t-meta text-[0.75rem] text-error">Avant</p>
+          <p className="t-meta text-[0.75rem] text-success">Après</p>
         </div>
-        <div>
-          <p className="t-meta mb-3 text-[0.75rem] text-success">Après</p>
-          <ul className="flex flex-col gap-2.5 text-[1.0625rem] text-dark">
-            {Paires.map((pair) => (
-              <li key={pair.apres} className="flex items-start gap-2">
+        <div className="flex flex-col gap-3">
+          {Paires.map((pair) => (
+            <div key={pair.avant} className="grid grid-cols-2 gap-x-10">
+              <div className="flex items-start gap-2">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-error/60" />
+                <p className="text-[1.0625rem] text-secondary">{pair.avant}</p>
+              </div>
+              <div className="flex items-start gap-2">
                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
-                {pair.apres}
-              </li>
-            ))}
-          </ul>
+                <p className="text-[1.0625rem] text-dark">{pair.apres}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
