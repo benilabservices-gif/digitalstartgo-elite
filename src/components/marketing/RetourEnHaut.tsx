@@ -30,7 +30,7 @@ export function RetourEnHaut() {
   function remonter() {
     const doux = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     window.scrollTo({ top: 0, behavior: doux ? "smooth" : "auto" });
-    document.getElementById("top")?.focus?.();
+    document.getElementById("top")?.focus({ preventScroll: true });
   }
 
   return (
