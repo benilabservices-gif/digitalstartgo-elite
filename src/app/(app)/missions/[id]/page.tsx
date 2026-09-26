@@ -67,7 +67,7 @@ export default async function MissionPage({ params }: { params: { id: string } }
 
   // Use API route to bypass RLS issues
   const apiRes = await fetch(
-    `${process.env.NEXT_PUBLIC_SUPABASE_URL!}/rest/v1/missions?id=eq.${params.id}&select=id,number,title,objective,estimated_duration_minutes,stages(number,title)`,
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL!}/rest/v1/missions?id=eq.${params.id}&select=id,number,title,objective,estimated_duration_minutes,stage_id,stages(number,title)`,
     {
       headers: {
         apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
