@@ -76,7 +76,18 @@ create table if not exists public.missions (
   title text not null,
   objective text not null,
   estimated_duration_minutes integer not null,
-  order_index integer not null
+  order_index integer not null,
+  code text,
+  ordre integer default 1,
+  active boolean default true,
+  pourquoi text,
+  exemple_avant text,
+  exemple_apres text,
+  champs jsonb,
+  criteres jsonb,
+  guide_outil jsonb,
+  prompts_ia jsonb,
+  bonus_elite text
 );
 alter table public.missions enable row level security;
 create policy if not exists "missions_select_authenticated" on public.missions for select to authenticated using (auth.role() = 'authenticated');
@@ -322,6 +333,52 @@ join (values
   (7, 'Mettre en place ma relance', 'Créer une séquence de relance email ou WhatsApp pour les prospects non convertis.', 90),
   (8, 'Suivre mes métriques clés', 'Mettre en place le suivi de mes leads, ventes et revenu.', 60)
 ) as m(number, title, objective, duration) on m.number = s.number;
+
+-- Passer les anciennes missions 1 et 2 à inactive
+update public.missions set active = false, ordre = 0 where number in (1, 2);
+
+-- Missions guidées étape 1
+insert into public.missions (stage_id, code, number, order_index, title, objective, estimated_duration_minutes, ordre, active, pourquoi, exemple_avant, exemple_apres, champs, criteres)
+values
+  ((select id from public.stages where number = 1), '1.1', 1, 1, 'Faire l''état des lieux de votre activité', 'Photographiez votre activité telle qu''elle est aujourd''hui : c''est le point de départ de tout le parcours.', 20, 1, true,
+   'On ne construit pas un système de vente sur des impressions. Cette mission photographie votre activité telle qu''elle est aujourd''hui : c''est le point de départ de tout le parcours. Répondez avec vos vrais chiffres. « Je ne sais pas » est une réponse acceptée, et c''est déjà une information utile.',
+   'Mon business marche moyennement, je vends de temps en temps.',
+   'Coaching nutrition à 50 000 FCFA. 4 ventes ces 3 derniers mois, toutes par bouche-à-oreille. Environ 12 personnes intéressées ce mois-ci sur WhatsApp. Pas de page de vente, pas de relance.',
+   '[{"cle":"offre_actuelle","libelle":"Votre offre actuelle et son prix","aide":"Ce que vous vendez aujourd''hui et à combien.","type":"texte_long","obligatoire":true,"prerempli_depuis":{"profil":"main_offer"}},{"cle":"ventes_3_mois","libelle":"Nombre de ventes ces 3 derniers mois","type":"nombre","obligatoire":true},{"cle":"ca_3_mois","libelle":"Chiffre d''affaires ces 3 derniers mois (FCFA)","type":"nombre","obligatoire":true},{"cle":"interesses_mois","libelle":"Nombre de personnes intéressées ce mois-ci","aide":"Messages, demandes de prix, commentaires ''intéressé''.","type":"nombre","obligatoire":true},{"cle":"offre","libelle":"Pouvez-vous dire en une phrase pour qui est votre offre et quel résultat elle apporte ?","type":"choix","obligatoire":true,"options":["Non","Oui, mais c''est flou","Oui, clairement"],"points":[0,5,10]},{"cle":"positionnement","libelle":"Savez-vous précisément qui est votre client idéal (métier, situation) ?","type":"choix","obligatoire":true,"options":["Non","Vaguement","Oui, je peux le décrire"],"points":[0,5,10]},{"cle":"audience","libelle":"Taille de votre audience totale (abonnés, contacts WhatsApp, emails)","type":"choix","obligatoire":true,"options":["Moins de 100","100 à 1 000","1 000 à 5 000","Plus de 5 000"],"points":[0,3,6,10]},{"cle":"acquisition","libelle":"D''où viennent vos clients ?","type":"choix","obligatoire":true,"options":["Je ne sais pas","Uniquement le bouche-à-oreille","Un canal régulier (réseaux, pub, partenaires)","Plusieurs canaux réguliers"],"points":[0,3,7,10]},{"cle":"captureDeLeads","libelle":"Avez-vous un moyen de récupérer les contacts de vos prospects (ressource gratuite, formulaire, liste) ?","type":"choix","obligatoire":true,"options":["Non","Oui, mais peu utilisé","Oui, et il fonctionne"],"points":[0,5,10]},{"cle":"funnel","libelle":"Existe-t-il un parcours clair jusqu''au paiement (page de vente, lien de paiement) ?","type":"choix","obligatoire":true,"options":["Non, tout se fait en conversation","En partie","Oui, en ligne"],"points":[0,5,10]},{"cle":"conversion","libelle":"Sur 10 personnes intéressées, combien achètent ?","type":"choix","obligatoire":true,"options":["Je ne sais pas ou aucune","1 à 2","3 à 4","5 ou plus"],"points":[0,4,7,10]},{"cle":"relance","libelle":"Relancez-vous les personnes qui n''ont pas acheté ?","type":"choix","obligatoire":true,"options":["Jamais","Parfois, à la main","Oui, avec une séquence prête"],"points":[0,5,10]},{"cle":"analytics","libelle":"Connaissez-vous vos chiffres du mois dernier (prospects, ventes, chiffre d''affaires) ?","type":"choix","obligatoire":true,"options":["Non","En partie","Oui, je les note"],"points":[0,5,10]}]',
+   '["Les chiffres (ventes, chiffre d''affaires, personnes intéressées) sont renseignés honnêtement.","Les réponses sont cohérentes entre elles.","L''offre actuelle est décrite avec son prix."]'),
+  ((select id from public.stages where number = 1), '1.2', 2, 2, 'Fixer votre objectif à 90 jours', 'Sans ligne d''arrivée, impossible de savoir si le parcours vous fait progresser.', 15, 2, true,
+   'Sans ligne d''arrivée, impossible de savoir si le parcours vous fait progresser. Un bon objectif est chiffré, assez ambitieux pour vous motiver, mais réaliste par rapport à votre point de départ et au temps dont vous disposez.',
+   'Je veux vivre de mon business.',
+   '600 000 FCFA de chiffre d''affaires en 90 jours, soit 12 ventes à 50 000 FCFA, 1 par semaine. J''ai 5 h par semaine. Ce qui m''a bloqué : je ne relance jamais les personnes intéressées.',
+   '[{"cle":"ca_vise","libelle":"Chiffre d''affaires visé dans 90 jours (FCFA)","type":"nombre","obligatoire":true},{"cle":"prix_moyen","libelle":"Prix moyen d''une vente (FCFA)","type":"nombre","obligatoire":true,"prerempli_depuis":{"profil":"price"}},{"cle":"temps_semaine","libelle":"Temps disponible par semaine pour votre activité","type":"choix","obligatoire":true,"options":["Moins de 3 h","3 à 5 h","5 à 10 h","Plus de 10 h"]},{"cle":"blocage","libelle":"Ce qui vous a le plus bloqué jusqu''ici","aide":"Soyez concret : ''je ne relance jamais'', pas ''le manque de motivation''.","type":"texte_long","obligatoire":true},{"cle":"motivation","libelle":"Pourquoi cet objectif compte pour vous","type":"texte_long","obligatoire":true}]',
+   '["L''objectif est chiffré en FCFA et en nombre de ventes.","Il est réaliste par rapport au point de départ et au temps disponible.","Le blocage cité est concret."]');
+
+-- Missions guidées étape 2
+insert into public.missions (stage_id, code, number, order_index, title, objective, estimated_duration_minutes, ordre, active, pourquoi, exemple_avant, exemple_apres, champs, criteres)
+values
+  ((select id from public.stages where number = 2), '2.1', 3, 1, 'Formuler votre promesse', 'Dites en une phrase claire pour qui vous êtes, quel résultat vous apportez, en combien de temps et sans quelle contrainte.', 30, 1, true,
+   'Un prospect décide en quelques secondes si votre offre est pour lui. Si votre promesse est vague, il passe son chemin, même si votre accompagnement est excellent. Une bonne promesse dit pour qui c''est, quel résultat on obtient, en combien de temps, et sans quel obstacle.',
+   'J''accompagne les femmes entrepreneures à développer leur business.',
+   'J''aide les couturières qui vendent sur WhatsApp à obtenir 10 commandes de plus par mois en 60 jours, sans payer de publicité.',
+   '[{"cle":"pour_qui","libelle":"Pour qui ?","aide":"Un métier et une situation précise : \"les coachs sportifs qui débutent en ligne\", pas \"tout le monde\".","type":"texte","obligatoire":true},{"cle":"probleme","libelle":"Quel problème les empêche de dormir ?","aide":"Avec leurs mots à eux, ceux qu''ils vous disent en conversation.","type":"texte_long","obligatoire":true},{"cle":"resultat","libelle":"Quel résultat concret obtiennent-ils ?","aide":"Un chiffre ou un changement visible.","type":"texte","obligatoire":true},{"cle":"delai","libelle":"En combien de temps ?","type":"texte","obligatoire":true},{"cle":"sans_obstacle","libelle":"Sans quel obstacle ou quelle contrainte ?","aide":"Par exemple : sans y passer ses soirées, sans budget pub.","type":"texte","obligatoire":true},{"cle":"promesse","libelle":"Votre promesse en une phrase","aide":"J''aide [pour qui] à [résultat] en [délai] sans [obstacle].","type":"texte_long","obligatoire":true}]',
+   '["La cible est nommée par un métier ou une situation, jamais par « tout le monde » ou « les entrepreneurs ».","Le résultat est mesurable ou observable.","Un inconnu comprend la promesse en moins de 10 secondes."]'),
+  ((select id from public.stages where number = 2), '2.2', 4, 2, 'Construire votre package', 'Décrivez semaine après semaine ce que le client reçoit, pour qu''il visualise le parcours avant d''acheter.', 40, 2, true,
+   'Le client n''achète pas « un accompagnement ». Il achète ce qu''il va recevoir, semaine après semaine. Plus il visualise le parcours, plus l''achat lui paraît sûr.',
+   'Suivi de 3 mois avec des points réguliers.',
+   'Programme Atelier Plein, 8 semaines. Semaine 1 : audit de votre catalogue WhatsApp. Semaines 2 et 3 : 3 modèles de messages de relance prêts à envoyer. Chaque semaine : 1 h de séance de groupe. Semaine 6 : revue de vos prix. Bonus : groupe d''entraide des participantes.',
+   '[{"cle":"nom_offre","libelle":"Nom de votre offre","type":"texte","obligatoire":true},{"cle":"format","libelle":"Format","options":["Accompagnement individuel","Accompagnement de groupe","Formation","Service réalisé pour le client","Produit"],"type":"choix","obligatoire":true},{"cle":"duree","libelle":"Durée totale","type":"texte","obligatoire":true},{"cle":"elements","libelle":"Ce que le client reçoit concrètement","aide":"Pour chaque élément, précisez à quoi il sert.","type":"liste","obligatoire":true,"min_lines":3,"max_lines":6},{"cle":"etapes","libelle":"Les étapes du parcours client, dans l''ordre","type":"liste","obligatoire":true,"min_lines":3,"max_lines":5},{"cle":"bonus","libelle":"Bonus","type":"texte_long","obligatoire":false},{"cle":"non_inclus","libelle":"Ce qui n''est PAS inclus","aide":"Ça évite les malentendus et les demandes hors cadre.","type":"texte_long","obligatoire":true}]',
+   '["Chaque élément reçu sert directement la promesse de la mission 2.1.","Le client peut se représenter ce qui se passe à chaque étape.","Il n''y a pas plus de 6 éléments."]'),
+  ((select id from public.stages where number = 2), '2.3', 5, 3, 'Fixer votre prix et votre garantie', 'Positionnez votre prix par rapport à la valeur du résultat pour le client, et ajoutez une garantie que vous pouvez tenir.', 30, 3, true,
+   'Un prix se juge par rapport à ce que le résultat rapporte au client, pas par rapport à vos heures de travail. Une garantie bien pensée enlève la dernière hésitation, sans vous mettre en danger.',
+   'Prix : 150 000 FCFA.',
+   '150 000 FCFA, ou 2 fois 80 000 FCFA. Dix commandes de plus par mois à 15 000 FCFA de marge, c''est 150 000 FCFA gagnés dès le premier mois. Garantie : si vous avez réalisé toutes les missions et que vous n''avez aucune commande supplémentaire au bout de 8 semaines, on continue ensemble gratuitement pendant 4 semaines.',
+   '[{"cle":"prix","libelle":"Prix (FCFA)","type":"nombre","obligatoire":true},{"cle":"modalites","libelle":"Modalités de paiement","options":["En une fois","En 2 ou 3 fois","Mensuel"],"type":"choix","obligatoire":true},{"cle":"valeur_client","libelle":"Combien le résultat rapporte ou fait économiser au client (FCFA)","type":"nombre","obligatoire":true},{"cle":"garantie","libelle":"Votre garantie","aide":"Prolonger l''accompagnement est souvent plus tenable qu''un remboursement.","type":"texte_long","obligatoire":true},{"cle":"objections","libelle":"Les 3 objections que vous entendez le plus, et votre réponse à chacune","type":"liste","obligatoire":true,"min_lines":3,"max_lines":3},{"cle":"offre_complete","libelle":"Votre offre complète en 3 lignes : promesse, contenu, prix et garantie","type":"texte_long","obligatoire":true}]',
+   '["Le résultat vaut au moins 5 fois le prix pour le client, avec un calcul visible.","La garantie est claire et vous pouvez la tenir.","Aucune fausse urgence : s''il y a une limite de places ou de date, elle est réelle."]');
+
+-- Supprimer la contrainte unique sur number et ajouter les nouvelles contraintes
+alter table public.missions drop constraint if exists missions_number_key;
+alter table public.missions add constraint missions_code_key unique (code);
+alter table public.missions add constraint missions_stage_ordre_key unique (stage_id, ordre);
 
 -- ============================================================================
 -- SEED: Resources (étapes 1-8)
