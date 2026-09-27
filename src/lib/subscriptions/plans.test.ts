@@ -21,8 +21,8 @@ describe("formatXof", () => {
 
 describe("PLANS", () => {
   it("expose les 3 paliers avec les nouveaux prix", () => {
-    expect(PLANS.starter.amountXof).toBe(149900);
-    expect(PLANS.pro.amountXof).toBe(249900);
+    expect(PLANS.starter.amountXof).toBe(99900);
+    expect(PLANS.pro.amountXof).toBe(199900);
     expect(PLANS.elite.amountXof).toBe(349900);
   });
 
@@ -44,17 +44,17 @@ describe("PLANS", () => {
   });
 
   it("expose prixTroisMoisXof pour chaque palier", () => {
-    expect(PLANS.starter.prixTroisMoisXof).toBe(425000);
-    expect(PLANS.pro.prixTroisMoisXof).toBe(710000);
+    expect(PLANS.starter.prixTroisMoisXof).toBe(285000);
+    expect(PLANS.pro.prixTroisMoisXof).toBe(570000);
     expect(PLANS.elite.prixTroisMoisXof).toBe(995000);
   });
 
   it("calcule correctement l'économie", () => {
     const starterEconomie = 3 * PLANS.starter.amountXof - PLANS.starter.prixTroisMoisXof;
-    expect(starterEconomie).toBe(24700);
+    expect(starterEconomie).toBe(14700);
 
     const proEconomie = 3 * PLANS.pro.amountXof - PLANS.pro.prixTroisMoisXof;
-    expect(proEconomie).toBe(39700);
+    expect(proEconomie).toBe(29700);
 
     const eliteEconomie = 3 * PLANS.elite.amountXof - PLANS.elite.prixTroisMoisXof;
     expect(eliteEconomie).toBe(54700);
