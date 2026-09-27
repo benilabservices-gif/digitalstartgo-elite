@@ -54,8 +54,8 @@ VALUES (
     {"cle":"nom_offre","libelle":"Nom de votre offre","type":"texte","obligatoire":true},
     {"cle":"format","libelle":"Format","options":["Accompagnement individuel","Accompagnement de groupe","Formation","Service réalisé pour le client","Produit"],"type":"choix","obligatoire":true},
     {"cle":"duree","libelle":"Durée totale","type":"texte","obligatoire":true},
-    {"cle":"elements","libelle":"Ce que le client reçoit concrètement","aide":"Pour chaque élément, précisez à quoi il sert.","type":"liste","obligatoire":true,"min_lines":3,"max_lines":6},
-    {"cle":"etapes","libelle":"Les étapes du parcours client, dans l''ordre","type":"liste","obligatoire":true,"min_lines":3,"max_lines":5},
+    {"cle":"elements","libelle":"Ce que le client reçoit concrètement","aide":"Pour chaque élément, précisez à quoi il sert.","type":"liste","obligatoire":true,"min_lignes":3,"max_lignes":6},
+    {"cle":"etapes","libelle":"Les étapes du parcours client, dans l''ordre","type":"liste","obligatoire":true,"min_lignes":3,"max_lignes":5},
     {"cle":"bonus","libelle":"Bonus","type":"texte_long","obligatoire":false},
     {"cle":"non_inclus","libelle":"Ce qui n''est PAS inclus","aide":"Ça évite les malentendus et les demandes hors cadre.","type":"texte_long","obligatoire":true}
   ]',
@@ -85,7 +85,7 @@ VALUES (
     {"cle":"modalites","libelle":"Modalités de paiement","options":["En une fois","En 2 ou 3 fois","Mensuel"],"type":"choix","obligatoire":true},
     {"cle":"valeur_client","libelle":"Combien le résultat rapporte ou fait économiser au client (FCFA)","type":"nombre","obligatoire":true},
     {"cle":"garantie","libelle":"Votre garantie","aide":"Prolonger l''accompagnement est souvent plus tenable qu''un remboursement.","type":"texte_long","obligatoire":true},
-    {"cle":"objections","libelle":"Les 3 objections que vous entendez le plus, et votre réponse à chacune","type":"liste","obligatoire":true,"min_lines":3,"max_lines":3},
+    {"cle":"objections","libelle":"Les 3 objections que vous entendez le plus, et votre réponse à chacune","type":"liste","obligatoire":true,"min_lignes":3,"max_lignes":3},
     {"cle":"offre_complete","libelle":"Votre offre complète en 3 lignes : promesse, contenu, prix et garantie","type":"texte_long","obligatoire":true}
   ]',
   '[
