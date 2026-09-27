@@ -32,6 +32,7 @@ export async function POST(request: Request) {
     .from("subscriptions")
     .select("id, plan, echeance, engagement_fin")
     .eq("profile_id", user.id)
+    .neq("mode_paiement", "admin")
     .gt("engagement_fin", new Date().toISOString())
     .order("engagement_fin", { ascending: false })
     .limit(1)

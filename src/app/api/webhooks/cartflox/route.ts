@@ -82,6 +82,7 @@ export async function POST(request: Request) {
         .from("subscriptions")
         .select("engagement_fin, expires_at")
         .eq("profile_id", profileId)
+        .neq("mode_paiement", "admin")
         .order("engagement_fin", { ascending: false })
         .limit(1)
         .maybeSingle();

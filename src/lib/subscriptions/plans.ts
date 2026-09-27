@@ -17,8 +17,8 @@ export const PLANS: Record<PlanKey, Plan> = {
   starter: {
     key: "starter",
     name: "Starter",
-    amountXof: 149900,
-    prixTroisMoisXof: 425000,
+    amountXof: 99900,
+    prixTroisMoisXof: 285000,
     engagementMois: 3,
     delaiRetourHeures: 72,
     avantages: [
@@ -32,8 +32,8 @@ export const PLANS: Record<PlanKey, Plan> = {
   pro: {
     key: "pro",
     name: "Pro",
-    amountXof: 249900,
-    prixTroisMoisXof: 710000,
+    amountXof: 199900,
+    prixTroisMoisXof: 570000,
     engagementMois: 3,
     delaiRetourHeures: 48,
     avantages: [
