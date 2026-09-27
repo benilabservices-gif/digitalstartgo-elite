@@ -64,5 +64,13 @@ export async function POST(request: Request) {
     { onConflict: "cartflox_order_id", ignoreDuplicates: true }
   );
 
+  try {
+    const { sendPaymentConfirmedEmail, sendNewSaleEmail } = await import("@/lib/email");
+    await sendPaymentConfirmedEmail(profileId, orderId);
+    await sendNewSaleEmail(profileId, orderId);
+  } catch (err: any) {
+    console.error("[webhook/cartflox] email error:", err?.message);
+  }
+
   return NextResponse.json({ received: true });
 }

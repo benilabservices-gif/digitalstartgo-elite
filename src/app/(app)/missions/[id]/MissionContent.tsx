@@ -254,18 +254,20 @@ function MissionForm({
       ? formatContenu(mission.champs, reponses)
       : JSON.stringify(reponses, null, 2);
 
-    const { error: subError } = await supabase.from("mission_submissions").insert({
-      mission_progress_id: pid,
-      reponses,
-      contenu,
-      statut: "soumis",
+    const res = await fetch("/api/missions/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ missionId: mission.id, contenu, reponses }),
     });
 
-    if (subError) {
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
       setSaving(false);
-      setSubmitError("Une erreur est survenue. Réessayez.");
+      setSubmitError(err?.error ?? "Une erreur est survenue. Réessayez.");
       return;
     }
+
+    const { id: submissionId } = await res.json();
 
     // Si c'est la mission 1.1, calculer et enregistrer le diagnostic
     if (mission.code === "1.1" && mission.champs) {
@@ -669,16 +671,21 @@ function LegacyForm({
       setError("Erreur : aucune progression trouvée.");
       return;
     }
-    const { error: subError } = await supabase.from("mission_submissions").insert({
-      mission_progress_id: pid,
-      contenu,
-      statut: "soumis",
+
+    const res = await fetch("/api/missions/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ missionProgressId: pid, contenu }),
     });
-    setSaving(false);
-    if (subError) {
-      setError("Une erreur est survenue. Réessayez.");
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      setSaving(false);
+      setError(err?.error ?? "Une erreur est survenue. Réessayez.");
       return;
     }
+
+    setSaving(false);
     localStorage.removeItem(`mission_draft_legacy_${mission.id}`);
     onSubmitted();
   }
