@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 export function createClient() {
   const cookieStore = cookies();
@@ -23,21 +24,15 @@ export function createClient() {
 }
 
 /**
- * Create a Supabase client with SERVICE_ROLE key — bypasses RLS.
- * Use ONLY for server-side reads where RLS blocks the anon key.
+ * Client Supabase avec la clé SERVICE_ROLE : contourne RLS.
+ * À utiliser uniquement côté serveur (emails, cron, webhooks).
+ * Surtout pas de cookies ici : avec les cookies, la session de l'utilisateur
+ * connecté remplace la clé service_role et les requêtes repassent sous RLS.
  */
 export function createServiceClient() {
-  const cookieStore = cookies();
-  return createServerClient(
+  return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: { persistSession: false },
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-      },
-    }
+    { auth: { persistSession: false, autoRefreshToken: false } }
   );
 }
