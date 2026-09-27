@@ -76,24 +76,26 @@ export async function sendMissionValidatedEmail(submissionId: string): Promise<v
   const nextMission = await fetchNextMission();
   const isLastMissionOfStage = !nextMission;
 
+  // Missions actives de l'étape que ce participant a validées (pour la liste de l'email).
   const fetchValidatedMissions = async (): Promise<Array<{ code: string; title: string }>> => {
-    const { data: validatedSubs } = await supabase
-      .from("mission_submissions")
-      .select("mission_progress_id")
-      .eq("statut", "valide")
-      .filter("mission_progress.profile_id", "eq", missionProg.profile_id);
-    const progressIds = [...new Set((validatedSubs ?? []).map((v: any) => v.mission_progress_id))];
-    if (progressIds.length === 0) return [];
+    const { data: stageMissions } = await supabase
+      .from("missions")
+      .select("id, code, title, ordre")
+      .eq("stage_id", mission.stage_id)
+      .eq("active", true)
+      .order("ordre", { ascending: true });
+    const ids = (stageMissions ?? []).map((m: { id: string }) => m.id);
+    if (ids.length === 0) return [];
     const { data: progs } = await supabase
       .from("mission_progress")
       .select("mission_id")
-      .in("id", progressIds);
-    const missionIds = (progs ?? []).map((p: any) => p.mission_id);
-    const { data: missions } = await supabase
-      .from("missions")
-      .select("code, title")
-      .in("id", missionIds);
-    return (missions ?? []) as Array<{ code: string; title: string }>;
+      .eq("profile_id", missionProg.profile_id)
+      .eq("status", "valide")
+      .in("mission_id", ids);
+    const validees = new Set((progs ?? []).map((p: { mission_id: string }) => p.mission_id));
+    return (stageMissions ?? [])
+      .filter((m: { id: string }) => validees.has(m.id))
+      .map((m: { code: string; title: string }) => ({ code: m.code, title: m.title }));
   };
 
   const validatedMissions = isLastMissionOfStage ? await fetchValidatedMissions() : [];
@@ -104,7 +106,8 @@ export async function sendMissionValidatedEmail(submissionId: string): Promise<v
     ? await supabase.from("stages").select("number, title, objective, slug").eq("number", nextStageNumber).maybeSingle()
     : { data: null };
 
-  const isLastStage = !nextStage;
+  // Parcours terminé seulement si c'est la dernière mission de la dernière étape.
+  const isLastStage = isLastMissionOfStage && !nextStage;
 
   let bodyHtml = "";
   let bodyText = "";
@@ -118,6 +121,7 @@ export async function sendMissionValidatedEmail(submissionId: string): Promise<v
     bodyText = `Félicitations ${name} ! Vous avez terminé le parcours Virtuose Funnel.\n\nSi vous souhaitez partager votre témoignage, répondez à cet email.\n\n${SITE_URL}/dashboard`;
     subject = "Vous avez terminé le parcours Virtuose Funnel";
   } else if (isLastMissionOfStage) {
+    subject = `Étape ${stageNumber} terminée : ${nextStage?.title ?? `étape ${nextStageNumber}`} est débloquée`;
     bodyHtml = `
 <p style="color:#1a1a2e;font-size:16px;line-height:1.6;margin:0 0 16px;">Félicitations ${name} ! L'étape ${stageNumber} est terminée : « ${nextStage?.title ?? `l'étape ${nextStageNumber}`} » est débloquée.</p>
 <p style="color:#1a1a2e;font-size:16px;line-height:1.6;margin:0 0 16px;">Ce que vous avez construit dans cette étape :</p>
