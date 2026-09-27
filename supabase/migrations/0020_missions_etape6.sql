@@ -58,18 +58,7 @@ VALUES (
     "Un seul bouton d'action, avec le même texte partout sur la page."
   ]$txt$,
   $txt$[
-    {"titre":"Rédiger ma page de vente complète","prompt":"Tu es un copywriter expert en pages de vente pour des entrepreneurs d'Afrique francophone. Rédige une page de vente en français, claire et chaleureuse, lisible sur téléphone, avec ces sections dans l'ordre : titre, sous-titre, problème, solution, ce que le client reçoit, preuves, prix et garantie, questions fréquentes, appel à l'action répété 3 fois. N'invente aucun témoignage ni aucun chiffre : utilise uniquement les informations suivantes.
-Promesse : {{2.1.promesse}}
-Client idéal : {{3.1.qui}}
-Ses frustrations : {{3.1.frustrations}}
-Ce qu'il veut : {{3.1.desir}}
-Offre : {{2.2.nom_offre}}, {{2.2.duree}}
-Ce qu'il reçoit : {{2.2.elements}}
-Étapes : {{2.2.etapes}}
-Prix et garantie : {{2.3.offre_complete}}
-Objections : {{2.3.objections}}
-Positionnement : {{3.2.phrase_positionnement}}
-Preuve : {{3.2.preuve}}"},
+    {"titre":"Rédiger ma page de vente complète","prompt":"Tu es un copywriter expert en pages de vente pour des entrepreneurs d'Afrique francophone. Rédige une page de vente en français, claire et chaleureuse, lisible sur téléphone, avec ces sections dans l'ordre : titre, sous-titre, problème, solution, ce que le client reçoit, preuves, prix et garantie, questions fréquentes, appel à l'action répété 3 fois. N'invente aucun témoignage ni aucun chiffre : utilise uniquement les informations suivantes.\nPromesse : {{2.1.promesse}}\nClient idéal : {{3.1.qui}}\nSes frustrations : {{3.1.frustrations}}\nCe qu'il veut : {{3.1.desir}}\nOffre : {{2.2.nom_offre}}, {{2.2.duree}}\nCe qu'il reçoit : {{2.2.elements}}\nÉtapes : {{2.2.etapes}}\nPrix et garantie : {{2.3.offre_complete}}\nObjections : {{2.3.objections}}\nPositionnement : {{3.2.phrase_positionnement}}\nPreuve : {{3.2.preuve}}"},
     {"titre":"Proposer 5 titres plus percutants","prompt":"Voici la promesse de mon offre : {{2.1.promesse}}. Mon client idéal : {{3.1.qui}}. Propose 5 titres de page de vente de moins de 15 mots, chacun avec un angle différent (résultat, délai, obstacle évité, curiosité, témoignage). En français simple."},
     {"titre":"Transformer mes objections en FAQ","prompt":"Voici les objections de mes prospects et mes réponses : {{2.3.objections}}. Rédige une FAQ de 5 questions-réponses courtes et rassurantes pour ma page de vente, en français simple, sans promesse que je ne peux pas tenir."}
   ]$txt$
@@ -106,7 +95,7 @@ VALUES (
     {"titre":"Ajouter la page de remerciement","texte":"Dernière étape du tunnel : le message d'accueil de la mission 6.4.","lien_video":""},
     {"titre":"Tester un achat depuis votre téléphone","texte":"Faites un vrai achat avec un petit montant, et vérifiez chaque email reçu.","lien_video":""}
   ]$txt$,
-  $txt$$VIP## Votre tunnel de vente premium. Importez-le dans votre compte Systeme.io avec le lien de partage fourni par votre coach, puis remplacez les textes par ceux de votre mission 6.2. Votre coach vous accompagne lors de votre prochaine séance individuelle. $$
+  $txt$**Votre tunnel de vente premium.** Importez-le dans votre compte Systeme.io avec le lien de partage fourni par votre coach, puis remplacez les textes par ceux de votre mission 6.2. Votre coach vous accompagne lors de votre prochaine séance individuelle.$txt$
 );
 
 -- 5. Mission 6.4 — Accueillir votre nouveau client
