@@ -53,6 +53,6 @@ export { sendWelcomeEmail } from "./templates/welcome";
 export { sendPaymentConfirmedEmail } from "./templates/payment-confirmed";
 export { sendSubmissionReceivedEmail, sendCoachNotificationEmail } from "./templates/submission";
 export { sendMissionValidatedEmail, sendCorrectionRequestedEmail } from "./templates/validation";
-export { sendInactiveReminderEmail, sendSubscriptionEndingSoonEmail, sendSubscriptionEndedEmail } from "./templates/subsequent";
+export { sendInactiveReminderEmail, sendSubscriptionEndingSoonEmail, sendSubscriptionEndedEmail, sendLatePaymentReminderEmail } from "./templates/subsequent";
 export { sendNewSaleEmail } from "./templates/admin";
 export { sendLateSubmissionsEmail } from "./templates/cron";

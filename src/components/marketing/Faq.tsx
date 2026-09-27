@@ -7,7 +7,8 @@ const QUESTIONS = [
   { question: "Combien de temps dure le programme ?", reponse: "Le parcours en 8 étapes se termine généralement en 8 à 12 semaines, à votre rythme." },
   { question: "Ai-je besoin d'une audience pour commencer ?", reponse: "Non. Le programme vous aide à construire votre audience en même temps que votre offre." },
   { question: "Comment fonctionne le coaching ?", reponse: "Vous soumettez un livrable par mission, votre coach le corrige, vous ajustez si besoin." },
-  { question: "Puis-je annuler ?", reponse: "Oui, à tout moment, sans engagement de durée." },
+  { question: "Pourquoi un engagement de 3 mois ?", reponse: "Parce que c'est le temps réel pour construire et lancer un système de vente : un mois pour les fondations, un mois pour la construction, un mois pour le lancement. Vous pouvez payer chaque mois ou en une fois avec une remise." },
+  { question: "Puis-je annuler ?", reponse: "L'engagement de 3 mois est requis pour garantir votre progression. Vous pouvez payer mensuellement ou en une fois avec une remise d'environ 5%." },
   { question: "Le programme convient-il aux débutants ?", reponse: "Oui. Chaque mission part du principe que vous n'avez encore rien construit." },
 ];
 
