@@ -7,6 +7,9 @@ interface SubscriptionRow {
   profile_id: string;
   plan: string;
   expires_at: string;
+  mode_paiement: string;
+  echeance: number | null;
+  engagement_fin: string;
 }
 
 interface MemberRow {
@@ -28,8 +31,7 @@ export default async function AdminAbonnementsPage() {
 
   const { data: subscriptionsData } = await supabase
     .from("subscriptions")
-    .select("profile_id, plan, expires_at")
-    .gt("expires_at", new Date().toISOString())
+    .select("profile_id, plan, expires_at, mode_paiement, echeance, engagement_fin")
     .order("expires_at", { ascending: false });
 
   const activeByProfile = new Map<string, SubscriptionRow>();
@@ -101,7 +103,8 @@ export default async function AdminAbonnementsPage() {
                         <div className="mt-0.5 flex items-center gap-1.5">
                           <CheckCircle2 className="h-3 w-3 text-success" />
                           <span className="text-xs text-success">
-                            {active.plan} — actif jusqu&apos;au{" "}
+                            {active.plan} — {active.mode_paiement === "une_fois" ? "3 mois payé" : active.mode_paiement === "admin" ? "accès test" : `mensuel ${active.echeance ?? "?"}/3`}
+                            {" — actif jusqu&apos;au "}
                             {new Date(active.expires_at).toLocaleDateString("fr-FR")}
                           </span>
                         </div>

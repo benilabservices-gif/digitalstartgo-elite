@@ -4,6 +4,8 @@ export interface Plan {
   key: PlanKey;
   name: string;
   amountXof: number;
+  prixTroisMoisXof: number;
+  engagementMois: number;
   avantages: string[];
   delaiRetourHeures: number;
 }
@@ -16,6 +18,8 @@ export const PLANS: Record<PlanKey, Plan> = {
     key: "starter",
     name: "Starter",
     amountXof: 149900,
+    prixTroisMoisXof: 425000,
+    engagementMois: 3,
     delaiRetourHeures: 72,
     avantages: [
       "Le parcours complet en 8 étapes et 22 missions guidées",
@@ -29,11 +33,14 @@ export const PLANS: Record<PlanKey, Plan> = {
     key: "pro",
     name: "Pro",
     amountXof: 249900,
+    prixTroisMoisXof: 710000,
+    engagementMois: 3,
     delaiRetourHeures: 48,
     avantages: [
       "Tout Starter inclus",
       "Retour du coach sous 48 h",
-      "Une séance de groupe en direct chaque semaine, questions Systeme.io comprises",
+      "Un atelier de groupe en direct chaque semaine : offre, Systeme.io, relance",
+      "Vos pages et scripts corrigés en direct devant le groupe",
       "Virtuose AI (bientôt disponible)",
     ],
   },
@@ -41,13 +48,15 @@ export const PLANS: Record<PlanKey, Plan> = {
     key: "elite",
     name: "Elite",
     amountXof: 349900,
+    prixTroisMoisXof: 995000,
+    engagementMois: 3,
     delaiRetourHeures: 24,
     avantages: [
       "Tout Pro inclus",
-      "Votre tunnel de vente premium, prêt à importer dans Systeme.io",
-      "Retour du coach sous 24 h",
-      "2 séances individuelles par mois avec votre coach",
-      "Accès direct à votre coach sur WhatsApp",
+      "Votre tunnel de vente premium, importé et mis en ligne avec votre coach",
+      "6 séances individuelles, une par étape clé du parcours",
+      "Retour du coach sous 24 h et accès direct sur WhatsApp",
+      "Suivi de votre lancement pendant 14 jours",
     ],
   },
 };

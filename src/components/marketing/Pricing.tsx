@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Section } from "./Section";
-import { PLANS, formatXof } from "@/lib/subscriptions/plans";
+import { PLANS, formatXof, type PlanKey } from "@/lib/subscriptions/plans";
 import { Check } from "lucide-react";
 
 export function Pricing() {
@@ -29,13 +29,14 @@ export function Pricing() {
         Le col de l&apos;entonnoir.
       </h2>
       <p className="mt-6 max-w-[50ch] text-[1.1875rem] text-secondary">
-        C&apos;est l&apos;endroit le plus étroit de la page, et le seul choix qu&apos;il vous reste à faire. Sans engagement de durée.
+        Un engagement de 3 mois pour construire votre système de vente.
       </p>
 
       <div ref={ref} className="mt-14 flex flex-col gap-5">
         {planKeys.map((key, index) => {
           const plan = PLANS[key];
           const isPro = key === "pro";
+          const economy = 3 * plan.amountXof - plan.prixTroisMoisXof;
           return (
             <div
               key={plan.key}
@@ -61,10 +62,18 @@ export function Pricing() {
                     {formatXof(plan.amountXof)}
                   </span>
                   <span className={`text-[0.9375rem] ${isPro ? "text-steel" : "text-secondary"}`}>
-                    par mois
+                    FCFA / mois
                   </span>
                 </p>
               </div>
+
+              <p className={`mt-2 text-[0.9375rem] font-semibold ${isPro ? "text-gold" : "text-ochre"}`}>
+                Engagement 3 mois
+              </p>
+
+              <p className={`mt-1 text-[0.875rem] ${isPro ? "text-steel" : "text-secondary"}`}>
+                ou {formatXof(plan.prixTroisMoisXof)} en une fois (vous économisez {formatXof(economy)})
+              </p>
 
               <ul className="mt-5 flex flex-col gap-2 text-[1rem]">
                 {plan.avantages.map((avantage) => {
@@ -93,6 +102,100 @@ export function Pricing() {
             </div>
           );
         })}
+      </div>
+
+      {/* 3 mois selon votre offre */}
+      <div className="mt-16">
+        <h3 className="t-display-mid text-center text-[clamp(1.35rem,3vw,1.85rem)] text-dark">
+          Vos 3 mois, selon votre offre
+        </h3>
+        <div className="mt-8 overflow-x-auto">
+          <table className="w-full min-w-[700px] border-collapse">
+            <thead>
+              <tr>
+                <th className="sticky left-0 z-10 bg-white px-4 py-3 text-left text-sm font-semibold text-dark border-b border-r border-dark/12">
+                  Mois
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-dark border-b border-dark/12">
+                  Starter
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-dark border-b border-dark/12">
+                  Pro
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-dark border-b border-dark/12">
+                  Elite
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="sticky left-0 z-10 bg-ink/5 px-4 py-4 font-semibold text-dark border-b border-r border-dark/12">
+                  Mois 1 — Fondations
+                  <span className="block text-xs font-normal text-secondary mt-0.5">Étapes 1 à 3</span>
+                </td>
+                <td className="px-4 py-4 border-b border-dark/12 text-sm text-secondary">
+                  Vous avancez à votre rythme, corrigé sous 72 h
+                </td>
+                <td className="px-4 py-4 border-b border-dark/12 text-sm text-secondary">
+                  Ateliers hebdo : rendre son offre irrésistible, offres corrigées en direct
+                </td>
+                <td className="px-4 py-4 border-b border-dark/12 text-sm text-secondary">
+                  Séance 1 : diagnostic approfondi et objectif à 90 jours<br />
+                  Séance 2 : validation de l&apos;offre et du prix
+                </td>
+              </tr>
+              <tr>
+                <td className="sticky left-0 z-10 bg-ink/5 px-4 py-4 font-semibold text-dark border-b border-r border-dark/12">
+                  Mois 2 — Construction
+                  <span className="block text-xs font-normal text-secondary mt-0.5">Étapes 4 à 6</span>
+                </td>
+                <td className="px-4 py-4 border-b border-dark/12 text-sm text-secondary">
+                  Vous construisez votre tunnel avec les guides Systeme.io
+                </td>
+                <td className="px-4 py-4 border-b border-dark/12 text-sm text-secondary">
+                  Ateliers Systeme.io en direct et revue de tunnels en groupe
+                </td>
+                <td className="px-4 py-4 border-b border-dark/12 text-sm text-secondary">
+                  Tunnel premium importé<br />
+                  Séance 3 : mise en ligne du tunnel écran partagé<br />
+                  Séance 4 : lead magnet et plan d&apos;acquisition
+                </td>
+              </tr>
+              <tr>
+                <td className="sticky left-0 z-10 bg-ink/5 px-4 py-4 font-semibold text-dark border-b border-r border-dark/12">
+                  Mois 3 — Lancement
+                  <span className="block text-xs font-normal text-secondary mt-0.5">Étapes 7 et 8</span>
+                </td>
+                <td className="px-4 py-4 border-b border-dark/12 text-sm text-secondary">
+                  Bilan de fin de parcours corrigé par votre coach
+                </td>
+                <td className="px-4 py-4 border-b border-dark/12 text-sm text-secondary">
+                  Ateliers relance et conversion, scripts corrigés en direct<br />
+                  Bilan de groupe
+                </td>
+                <td className="px-4 py-4 border-b border-dark/12 text-sm text-secondary">
+                  Séance 5 : page de vente et script avant lancement<br />
+                  Séance 6 : bilan des chiffres et plan des 90 jours suivants<br />
+                  Suivi du lancement 14 jours
+                </td>
+              </tr>
+              <tr>
+                <td className="sticky left-0 z-10 bg-ink/5 px-4 py-4 font-semibold text-dark border-r border-dark/12">
+                  Vous repartez avec
+                </td>
+                <td className="px-4 py-4 text-sm text-secondary">
+                  Un système construit et validé par un coach
+                </td>
+                <td className="px-4 py-4 text-sm text-secondary">
+                  Un système construit et testé devant d&apos;autres
+                </td>
+                <td className="px-4 py-4 text-sm text-secondary font-semibold text-dark">
+                  Un tunnel qui tourne, lancé avec votre coach
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </Section>
   );

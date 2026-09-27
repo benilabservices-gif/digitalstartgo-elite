@@ -16,10 +16,10 @@ export default async function AbonnementPage() {
   if (user) {
     const { data } = await supabase
       .from("subscriptions")
-      .select("plan, expires_at")
+      .select("plan, expires_at, mode_paiement, echeance, engagement_fin")
       .eq("profile_id", user.id)
-      .gt("expires_at", new Date().toISOString())
-      .order("expires_at", { ascending: false })
+      .gt("engagement_fin", new Date().toISOString())
+      .order("engagement_fin", { ascending: false })
       .limit(1)
       .maybeSingle();
     activeSubscription = data;
@@ -45,14 +45,16 @@ export default async function AbonnementPage() {
         <p className="mt-2 text-secondary">
           {user
             ? activeSubscription
-              ? `Palier ${PLANS[activeSubscription.plan as PlanKey].name}, actif jusqu&apos;au ${new Date(activeSubscription.expires_at).toLocaleDateString("fr-FR")}.`
+              ? activeSubscription.mode_paiement === "mensuel" && activeSubscription.echeance
+                ? `Mensualité ${activeSubscription.echeance} sur 3 : ${formatXof(PLANS[activeSubscription.plan as PlanKey].amountXof)} FCFA, à régler avant le ${new Date(activeSubscription.expires_at).toLocaleDateString("fr-FR")}.`
+                : `Palier ${PLANS[activeSubscription.plan as PlanKey].name}, actif jusqu&apos;au ${new Date(activeSubscription.expires_at).toLocaleDateString("fr-FR")}.`
               : "Aucun abonnement actif. Choisissez un palier pour accéder à votre Parcours."
             : "Créez un compte et choisissez le palier qui vous correspond."}
         </p>
       </div>
 
       {/* Active subscription banner */}
-      {user && activeSubscription && (
+      {user && activeSubscription && activeSubscription.mode_paiement === "mensuel" && activeSubscription.echeance && (
         <PremiumCard className="mb-6 border-l-[3px] border-l-success" glow>
           <div className="flex items-center gap-3">
             <Crown className="h-6 w-6 text-success" />
@@ -61,7 +63,10 @@ export default async function AbonnementPage() {
                 Abonnement actif — {PLANS[activeSubscription.plan as PlanKey].name}
               </p>
               <p className="text-sm text-secondary">
-                Valide jusqu&apos;au {new Date(activeSubscription.expires_at).toLocaleDateString("fr-FR")}
+                Mensualité {activeSubscription.echeance} sur 3 : {formatXof(PLANS[activeSubscription.plan as PlanKey].amountXof)} FCFA
+              </p>
+              <p className="text-xs text-secondary mt-1">
+                À régler avant le {new Date(activeSubscription.expires_at).toLocaleDateString("fr-FR")}
               </p>
             </div>
           </div>
@@ -91,46 +96,72 @@ export default async function AbonnementPage() {
 
       {/* Plans */}
       <div className="space-y-4">
-        {Object.values(PLANS).map((plan) => (
-          <PremiumCard
-            key={plan.key}
-            title={plan.name}
-            subtitle={plan.key === "pro" ? "Le plus populaire" : plan.key === "elite" ? "L&apos;accompagnement premium" : "Pour démarrer"}
-            className={plan.key === "pro" ? "border-gold/30 shadow-[0_8px_32px_rgba(240,185,40,0.15)]" : ""}
-          >
-            <div className="flex items-end justify-between">
-              <p className="t-chiffre text-2xl text-dark">{formatXof(plan.amountXof)}</p>
-              <p className="text-sm text-secondary">/ mois</p>
-            </div>
+        {Object.values(PLANS).map((plan) => {
+          const economy = 3 * plan.amountXof - plan.prixTroisMoisXof;
+          return (
+            <PremiumCard
+              key={plan.key}
+              title={plan.name}
+              subtitle={plan.key === "pro" ? "Le plus populaire" : plan.key === "elite" ? "L&apos;accompagnement premium" : "Pour démarrer"}
+              className={plan.key === "pro" ? "border-gold/30 shadow-[0_8px_32px_rgba(240,185,40,0.15)]" : ""}
+            >
+              <div className="flex items-end justify-between">
+                <div>
+                  <p className="t-chiffre text-2xl text-dark">{formatXof(plan.amountXof)}</p>
+                  <p className="text-sm text-secondary">/ mois · Engagement 3 mois</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-semibold text-ochre">{formatXof(plan.prixTroisMoisXof)} en une fois</p>
+                  <p className="text-xs text-secondary">Économisez {formatXof(economy)}</p>
+                </div>
+              </div>
 
-            <ul className="mt-4 space-y-2">
-              {plan.avantages.map((item) => {
-                const isElitePremium = plan.key === "elite" && item.includes("tunnel de vente premium");
-                return (
-                  <li key={item} className={`flex items-center gap-2 text-sm ${isElitePremium ? "font-semibold text-dark" : "text-secondary"}`}>
-                    <Check className="h-4 w-4 text-gold shrink-0" />
-                    {item}
-                  </li>
-                );
-              })}
-            </ul>
+              <ul className="mt-4 space-y-2">
+                {plan.avantages.map((item) => {
+                  const isElitePremium = plan.key === "elite" && item.includes("tunnel de vente premium");
+                  return (
+                    <li key={item} className={`flex items-center gap-2 text-sm ${isElitePremium ? "font-semibold text-dark" : "text-secondary"}`}>
+                      <Check className="h-4 w-4 text-gold shrink-0" />
+                      {item}
+                    </li>
+                  );
+                })}
+              </ul>
 
-            {user ? (
-              <SubscribeButton plan={plan.key} />
-            ) : (
-              <Link
-                href="/signup"
-                className={`t-meta mt-5 block rounded-[3px] px-6 py-3 text-center text-[1rem] transition-all ${
-                  plan.key === "pro"
-                    ? "bg-gold text-ink hover:bg-amber hover:shadow-[0_0_24px_rgba(240,185,40,0.4)]"
-                    : "border border-dark/20 text-dark hover:border-ochre hover:text-ochre"
-                }`}
-              >
-                {plan.key === "pro" ? "S'inscrire et choisir ce plan" : "S'inscrire"}
-              </Link>
-            )}
-          </PremiumCard>
-        ))}
+              {user ? (
+                <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+                  <Link
+                    href={`/api/subscriptions/checkout?plan=${plan.key}&mode=mensuel`}
+                    className={`t-meta flex-1 rounded-[3px] px-6 py-3 text-center text-[1rem] transition-all border border-dark/20 text-dark hover:border-ochre hover:text-ochre`}
+                  >
+                    Payer {formatXof(plan.amountXof)} FCFA / mois
+                  </Link>
+                  <Link
+                    href={`/api/subscriptions/checkout?plan=${plan.key}&mode=une_fois`}
+                    className={`t-meta flex-1 rounded-[3px] px-6 py-3 text-center text-[1rem] transition-all ${
+                      plan.key === "pro"
+                        ? "bg-gold text-ink hover:bg-amber hover:shadow-[0_0_24px_rgba(240,185,40,0.4)]"
+                        : "border border-dark/20 text-dark hover:border-ochre hover:text-ochre"
+                    }`}
+                  >
+                    Payer {formatXof(plan.prixTroisMoisXof)} FCFA en une fois
+                  </Link>
+                </div>
+              ) : (
+                <Link
+                  href="/signup"
+                  className={`t-meta mt-5 block rounded-[3px] px-6 py-3 text-center text-[1rem] transition-all ${
+                    plan.key === "pro"
+                      ? "bg-gold text-ink hover:bg-amber hover:shadow-[0_0_24px_rgba(240,185,40,0.4)]"
+                      : "border border-dark/20 text-dark hover:border-ochre hover:text-ochre"
+                  }`}
+                >
+                  {plan.key === "pro" ? "S'inscrire et choisir ce plan" : "S'inscrire"}
+                </Link>
+              )}
+            </PremiumCard>
+          );
+        })}
       </div>
     </div>
   );

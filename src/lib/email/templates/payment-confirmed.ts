@@ -10,7 +10,7 @@ export async function sendPaymentConfirmedEmail(profileId: string, orderId: stri
     supabase.from("profiles").select("id, full_name, business_name").eq("id", profileId).maybeSingle(),
     supabase
       .from("subscriptions")
-      .select("plan, amount, expires_at")
+      .select("plan, amount, expires_at, mode_paiement, echeance")
       .eq("profile_id", profileId)
       .eq("cartflox_order_id", orderId)
       .maybeSingle(),
@@ -24,6 +24,11 @@ export async function sendPaymentConfirmedEmail(profileId: string, orderId: stri
   const planKey: PlanKey = (sub.plan as PlanKey) ?? "starter";
   const plan = PLANS[planKey];
   const expiresAt = new Date(sub.expires_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+  const modeText = sub.mode_paiement === "une_fois"
+    ? "3 mois réglés en une fois"
+    : sub.echeance
+      ? `Mensualité ${sub.echeance} sur 3`
+      : "Abonnement";
   const subject = `Paiement reçu : votre accès ${plan.name} est actif`;
 
   const avantagesList = plan.avantages.map((a) => `<li>${a}</li>`).join("");
@@ -44,7 +49,7 @@ tr><td align="center">
 </td></tr>
 <tr><td style="padding:32px;">
 <p style="color:#1a1a2e;font-size:16px;line-height:1.6;margin:0 0 8px;">Bonjour ${name},</p>
-<p style="color:#1a1a2e;font-size:16px;line-height:1.6;margin:0 0 16px;">Votre paiement de <strong>${formatXof(sub.amount)}</strong> a bien été enregistré. Votre accès ${plan.name} est actif jusqu'au ${expiresAt}.</p>
+<p style="color:#1a1a2e;font-size:16px;line-height:1.6;margin:0 0 16px;">Votre paiement de <strong>${formatXof(sub.amount)}</strong> a bien été enregistré. Votre accès ${plan.name} est actif jusqu'au ${expiresAt} (${modeText}).</p>
 <p style="color:#1a1a2e;font-size:16px;line-height:1.6;margin:0 0 16px;">Ce qui est inclus dans votre plan ${plan.name} :</p>
 <ul style="color:#1a1a2e;font-size:15px;line-height:1.8;margin:0 0 16px;padding-left:20px;">${avantagesList}</ul>
 ${eliteNote}
@@ -64,7 +69,7 @@ ${eliteNote}
 </body>
 </html>`;
 
-  const text = `Bonjour ${name},\n\nVotre paiement de ${formatXof(sub.amount)} a bien été enregistré. Votre accès ${plan.name} est actif jusqu'au ${expiresAt}.\n\nAvantages inclus :\n${plan.avantages.map((a) => `- ${a}`).join("\n")}\n${planKey === "elite" ? "\nVotre coach vous contacte sous 24 h pour planifier votre première séance individuelle." : ""}\n\nAccédez à votre parcours : ${SITE_URL}/dashboard\n\nCet email confirme votre paiement ; ce n'est pas une facture.\n\nL'équipe Virtuose Funnel`;
+  const text = `Bonjour ${name},\n\nVotre paiement de ${formatXof(sub.amount)} a bien été enregistré. Votre accès ${plan.name} est actif jusqu'au ${expiresAt} (${modeText}).\n\nAvantages inclus :\n${plan.avantages.map((a) => `- ${a}`).join("\n")}\n${planKey === "elite" ? "\nVotre coach vous contacte sous 24 h pour planifier votre première séance individuelle." : ""}\n\nAccédez à votre parcours : ${SITE_URL}/dashboard\n\nCet email confirme votre paiement ; ce n'est pas une facture.\n\nL'équipe Virtuose Funnel`;
 
   await sendEmail({ to: email, type: "payment_confirmed", ref: orderId, subject, html, text });
 }
