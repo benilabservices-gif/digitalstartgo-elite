@@ -24,11 +24,11 @@ VALUES (
   '[
     {"cle":"qui","libelle":"Qui est-ce ?","aide":"Métier, situation, ville, âge approximatif. Pensez à une vraie personne.","type":"texte_long","obligatoire":true,"prerempli_depuis":{"mission":"2.1","cle":"pour_qui"}},
     {"cle":"deja_essaye","libelle":"Qu''a-t-elle déjà essayé pour résoudre son problème, et pourquoi ça n''a pas marché ?","type":"texte_long","obligatoire":true},
-    {"cle":"frustrations","libelle":"Ses 3 frustrations, avec ses propres mots","aide":"Des phrases qu''elle dit vraiment, entre guillemets.","type":"liste","obligatoire":true,"min_lines":3,"max_lines":3},
+    {"cle":"frustrations","libelle":"Ses 3 frustrations, avec ses propres mots","aide":"Des phrases qu''elle dit vraiment, entre guillemets.","type":"liste","obligatoire":true,"min_lignes":3,"max_lignes":3},
     {"cle":"desir","libelle":"Ce qu''elle veut vraiment obtenir","aide":"Au-delà du résultat : ce que ça change dans sa vie.","type":"texte_long","obligatoire":true},
-    {"cle":"ou_la_trouver","libelle":"Où elle passe son temps","aide":"Noms précis : réseaux, groupes, comptes qu''elle suit, lieux, événements.","type":"liste","obligatoire":true,"min_lines":2,"max_lines":5},
+    {"cle":"ou_la_trouver","libelle":"Où elle passe son temps","aide":"Noms précis : réseaux, groupes, comptes qu''elle suit, lieux, événements.","type":"liste","obligatoire":true,"min_lignes":2,"max_lignes":5},
     {"cle":"hesitations","libelle":"Ce qui la fait hésiter à acheter","type":"texte_long","obligatoire":true},
-    {"cle":"trois_personnes","libelle":"3 personnes réelles qui correspondent à ce portrait","aide":"Prénoms ou initiales suffisent. Si vous n''en trouvez pas 3, le portrait est trop flou ou trop rare.","type":"liste","obligatoire":true,"min_lines":3,"max_lines":3}
+    {"cle":"trois_personnes","libelle":"3 personnes réelles qui correspondent à ce portrait","aide":"Prénoms ou initiales suffisent. Si vous n''en trouvez pas 3, le portrait est trop flou ou trop rare.","type":"liste","obligatoire":true,"min_lignes":3,"max_lignes":3}
   ]',
   '[
     "Le portrait est assez précis pour correspondre à 3 personnes réelles citées.",
@@ -52,7 +52,7 @@ VALUES (
   'Je suis passionnée et je donne le meilleur de moi-même.',
   'Contrairement aux formations en ligne génériques, je travaille directement sur le catalogue WhatsApp de chaque couturière, parce que j''ai moi-même tenu un atelier pendant 6 ans et que mes 8 premières clientes ont doublé leurs commandes.',
   '[
-    {"cle":"alternatives","libelle":"Les 3 principales alternatives à votre offre","aide":"Un concurrent, une solution gratuite, \"ne rien faire\"... et ce que chacune propose.","type":"liste","obligatoire":true,"min_lines":2,"max_lines":3},
+    {"cle":"alternatives","libelle":"Les 3 principales alternatives à votre offre","aide":"Un concurrent, une solution gratuite, \"ne rien faire\"... et ce que chacune propose.","type":"liste","obligatoire":true,"min_lignes":2,"max_lignes":3},
     {"cle":"difference","libelle":"Ce que vous faites différemment, et qui compte pour votre client","type":"texte_long","obligatoire":true},
     {"cle":"preuve","libelle":"Votre preuve","aide":"Un résultat client, votre expérience, un chiffre vérifiable.","type":"texte_long","obligatoire":true},
     {"cle":"phrase_positionnement","libelle":"Votre positionnement en une phrase","aide":"Contrairement à [alternative], je [différence] parce que [preuve].","type":"texte_long","obligatoire":true},
