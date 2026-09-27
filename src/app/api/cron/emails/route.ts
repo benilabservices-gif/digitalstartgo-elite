@@ -33,7 +33,7 @@ export async function GET(request: Request) {
       .from("subscriptions")
       .select("id, profile_id, expires_at, engagement_fin, mode_paiement")
       .eq("mode_paiement", "mensuel")
-      .lt("engagement_fin", now.toISOString())
+      .gt("engagement_fin", now.toISOString())
       .lt("expires_at", now.toISOString())
       .gt("expires_at", new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString()),
   ]);

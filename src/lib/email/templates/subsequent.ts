@@ -139,8 +139,8 @@ export async function sendSubscriptionEndingSoonEmail(profileId: string): Promis
   const expiresAt = new Date(sub.expires_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
 
   // If monthly mode and engagement not finished, send monthly payment reminder
-  if (sub.mode_paiement === "mensuel" && sub.engagement_fin && new Date(sub.engagement_fin) > new Date()) {
-    const nextEcheance = (sub.echeance ?? 0) + 1;
+  if (sub.mode_paiement === "mensuel" && (sub.echeance ?? 1) < 3 && sub.engagement_fin && new Date(sub.engagement_fin) > new Date()) {
+    const nextEcheance = (sub.echeance ?? 1) + 1;
     const subject = `Votre mensualité ${nextEcheance} sur 3 arrive le ${expiresAt}`;
 
     const html = `
@@ -157,8 +157,8 @@ export async function sendSubscriptionEndingSoonEmail(profileId: string): Promis
 <tr><td style="padding:32px;">
 <p style="color:#1a1a2e;font-size:16px;line-height:1.6;margin:0 0 16px;">Bonjour ${name},</p>
 <p style="color:#1a1a2e;font-size:16px;line-height:1.6;margin:0 0 16px;">
-  Votre mensualité ${sub.echeance ?? 1} sur 3 arrive le <strong>${expiresAt}</strong>.
-  Montant à régler : <strong>${formatXof(plan.amountXof)} FCFA</strong>.
+  Votre mensualité ${nextEcheance} sur 3 arrive le <strong>${expiresAt}</strong>.
+  Montant à régler : <strong>${formatXof(plan.amountXof)}</strong>.
 </p>
 <table role="presentation" cellpadding="0" cellspacing="0"><tr><td align="center"><a href="${SITE_URL}/abonnement" style="background:#f5c518;color:#1a1a2e;padding:14px 32px;text-decoration:none;font-weight:700;font-size:15px;border-radius:4px;">Régler ma mensualité</a></td></tr></table>
 </td></tr>
@@ -171,7 +171,7 @@ export async function sendSubscriptionEndingSoonEmail(profileId: string): Promis
 </body>
 </html>`;
 
-    const text = `Bonjour ${name},\n\nVotre mensualité ${sub.echeance ?? 1} sur 3 arrive le ${expiresAt}.\nMontant à régler : ${formatXof(plan.amountXof)} FCFA.\n\nRégler ma mensualité : ${SITE_URL}/abonnement\n\nL'équipe Virtuose Funnel`;
+    const text = `Bonjour ${name},\n\nVotre mensualité ${nextEcheance} sur 3 arrive le ${expiresAt}.\nMontant à régler : ${formatXof(plan.amountXof)}.\n\nRégler ma mensualité : ${SITE_URL}/abonnement\n\nL'équipe Virtuose Funnel`;
 
     await sendEmail({ to: email, type: "subscription_ending_soon", ref: `${profileId}_${sub.expires_at}`, subject, html, text });
     return;
@@ -307,7 +307,8 @@ export async function sendLatePaymentReminderEmail(profileId: string): Promise<v
 
   // Skip if no active engagement or not monthly mode
   if (lastSub.mode_paiement !== "mensuel" || !lastSub.engagement_fin) return;
-  if (new Date(lastSub.engagement_fin) > now) return;
+  // Engagement déjà terminé : ce n'est plus une mensualité en retard (E9 s'en charge).
+  if (new Date(lastSub.engagement_fin) <= now) return;
 
   // Skip if expires_at is not overdue by at least 1 day
   if (new Date(lastSub.expires_at).getTime() > now.getTime() - 24 * 60 * 60 * 1000) return;
@@ -345,7 +346,7 @@ export async function sendLatePaymentReminderEmail(profileId: string): Promise<v
 <p style="color:#1a1a2e;font-size:16px;line-height:1.6;margin:0 0 16px;">Bonjour ${name},</p>
 <p style="color:#1a1a2e;font-size:16px;line-height:1.6;margin:0 0 16px;">
   Votre mensualité n'a pas été réglée. Votre accès est actuellement en pause.
-  Montant à régler : <strong>${formatXof(plan.amountXof)} FCFA</strong>.
+  Montant à régler : <strong>${formatXof(plan.amountXof)}</strong>.
 </p>
 <table role="presentation" cellpadding="0" cellspacing="0"><tr><td align="center"><a href="${SITE_URL}/abonnement" style="background:#f5c518;color:#1a1a2e;padding:14px 32px;text-decoration:none;font-weight:700;font-size:15px;border-radius:4px;">Régler ma mensualité</a></td></tr></table>
 </td></tr>
@@ -358,7 +359,7 @@ export async function sendLatePaymentReminderEmail(profileId: string): Promise<v
 </body>
 </html>`;
 
-  const text = `Bonjour ${name},\n\nVotre mensualité est en retard : votre accès est en pause.\nMontant à régler : ${formatXof(plan.amountXof)} FCFA.\n\nRégler ma mensualité : ${SITE_URL}/abonnement\n\nL'équipe Virtuose Funnel`;
+  const text = `Bonjour ${name},\n\nVotre mensualité est en retard : votre accès est en pause.\nMontant à régler : ${formatXof(plan.amountXof)}.\n\nRégler ma mensualité : ${SITE_URL}/abonnement\n\nL'équipe Virtuose Funnel`;
 
   await sendEmail({ to: email, type: "late_payment_reminder", ref: `${profileId}_${lastSub.expires_at}`, subject, html, text });
 }

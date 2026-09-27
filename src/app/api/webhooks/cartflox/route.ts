@@ -42,8 +42,10 @@ export async function POST(request: Request) {
 
   const profileId = payload.data.metadata?.profile_id;
   const plan = payload.data.metadata?.plan;
-  const mode = payload.data.metadata?.mode || "mensuel";
-  const echeance = payload.data.metadata?.echeance ?? null;
+  const mode = payload.data.metadata?.mode === "une_fois" ? "une_fois" : "mensuel";
+  // Les métadonnées peuvent revenir en texte ("2") : on force un nombre entre 1 et 3.
+  const echeanceBrute = Number(payload.data.metadata?.echeance ?? 1);
+  const echeance = mode === "une_fois" ? null : Math.min(Math.max(Number.isFinite(echeanceBrute) ? echeanceBrute : 1, 1), 3);
   const orderId = payload.data.order_id;
 
   if (!profileId || !plan || !orderId) {
@@ -64,7 +66,7 @@ export async function POST(request: Request) {
 
   let expiresAt: string;
   let engagementFin: string;
-  let modePaiement = mode === "une_fois" ? "une_fois" : mode === "admin" ? "admin" : "mensuel";
+  const modePaiement = mode;
 
   if (mode === "une_fois") {
     expiresAt = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString();
@@ -90,8 +92,10 @@ export async function POST(request: Request) {
         const nowTime = now.getTime();
 
         if (oldEngagementFin > new Date(nowTime)) {
-          // Engagement still active - extend from old expiration date
-          expiresAt = new Date(oldExpiresAt.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+          // Engagement en cours : +30 jours à partir de l'ancienne fin, ou d'aujourd'hui
+          // si le client paie en retard (il ne perd pas de jours payés).
+          const base = Math.max(oldExpiresAt.getTime(), nowTime);
+          expiresAt = new Date(base + 30 * 24 * 60 * 60 * 1000).toISOString();
         } else {
           // Engagement expired - start fresh
           expiresAt = new Date(nowTime + 30 * 24 * 60 * 60 * 1000).toISOString();

@@ -25,6 +25,13 @@ export default async function AbonnementPage() {
     activeSubscription = data;
   }
 
+  // Engagement mensuel en cours avec une mensualité restant à payer ?
+  const enCoursMensuel =
+    activeSubscription?.mode_paiement === "mensuel" && (activeSubscription.echeance ?? 1) < 3;
+  const prochaineEcheance = enCoursMensuel ? (activeSubscription!.echeance ?? 1) + 1 : null;
+  // Un vrai engagement payé (pas un accès test) masque le choix des offres.
+  const engagementPaye = activeSubscription && activeSubscription.mode_paiement !== "admin";
+
   return (
     <div className="mx-auto max-w-3xl px-6 py-10 pb-24 sm:pb-10">
       {/* Header */}
@@ -45,28 +52,46 @@ export default async function AbonnementPage() {
         <p className="mt-2 text-secondary">
           {user
             ? activeSubscription
-              ? activeSubscription.mode_paiement === "mensuel" && activeSubscription.echeance
-                ? `Mensualité ${activeSubscription.echeance} sur 3 : ${formatXof(PLANS[activeSubscription.plan as PlanKey].amountXof)} FCFA, à régler avant le ${new Date(activeSubscription.expires_at).toLocaleDateString("fr-FR")}.`
-                : `Palier ${PLANS[activeSubscription.plan as PlanKey].name}, actif jusqu&apos;au ${new Date(activeSubscription.expires_at).toLocaleDateString("fr-FR")}.`
+              ? enCoursMensuel
+                ? `Mensualité ${prochaineEcheance} sur 3 : ${formatXof(PLANS[activeSubscription.plan as PlanKey].amountXof)}, à régler avant le ${new Date(activeSubscription.expires_at).toLocaleDateString("fr-FR")}.`
+                : `Palier ${PLANS[activeSubscription.plan as PlanKey].name}, engagement jusqu'au ${new Date(activeSubscription.engagement_fin).toLocaleDateString("fr-FR")}.`
               : "Aucun abonnement actif. Choisissez un palier pour accéder à votre Parcours."
             : "Créez un compte et choisissez le palier qui vous correspond."}
         </p>
       </div>
 
       {/* Active subscription banner */}
-      {user && activeSubscription && activeSubscription.mode_paiement === "mensuel" && activeSubscription.echeance && (
+      {user && activeSubscription && enCoursMensuel && (
+        <PremiumCard className="mb-6 border-l-[3px] border-l-gold" glow>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <Crown className="h-6 w-6 shrink-0 text-gold" />
+            <div className="flex-1">
+              <p className="font-semibold text-dark">
+                Engagement {PLANS[activeSubscription.plan as PlanKey].name} · mensualité {prochaineEcheance} sur 3
+              </p>
+              <p className="text-sm text-secondary">
+                {formatXof(PLANS[activeSubscription.plan as PlanKey].amountXof)}, à régler avant le{" "}
+                {new Date(activeSubscription.expires_at).toLocaleDateString("fr-FR")}
+              </p>
+            </div>
+            <SubscribeButton
+              plan={activeSubscription.plan as PlanKey}
+              mode="mensuel"
+              label="Régler ma mensualité"
+              highlighted
+            />
+          </div>
+        </PremiumCard>
+      )}
+
+      {user && activeSubscription && engagementPaye && !enCoursMensuel && (
         <PremiumCard className="mb-6 border-l-[3px] border-l-success" glow>
           <div className="flex items-center gap-3">
             <Crown className="h-6 w-6 text-success" />
             <div>
-              <p className="font-semibold text-dark">
-                Abonnement actif — {PLANS[activeSubscription.plan as PlanKey].name}
-              </p>
+              <p className="font-semibold text-dark">Engagement {PLANS[activeSubscription.plan as PlanKey].name} réglé</p>
               <p className="text-sm text-secondary">
-                Mensualité {activeSubscription.echeance} sur 3 : {formatXof(PLANS[activeSubscription.plan as PlanKey].amountXof)} FCFA
-              </p>
-              <p className="text-xs text-secondary mt-1">
-                À régler avant le {new Date(activeSubscription.expires_at).toLocaleDateString("fr-FR")}
+                Votre accès court jusqu&apos;au {new Date(activeSubscription.expires_at).toLocaleDateString("fr-FR")}.
               </p>
             </div>
           </div>
@@ -95,6 +120,7 @@ export default async function AbonnementPage() {
       )}
 
       {/* Plans */}
+      {!engagementPaye && (
       <div className="space-y-4">
         {Object.values(PLANS).map((plan) => {
           const economy = 3 * plan.amountXof - plan.prixTroisMoisXof;
@@ -130,22 +156,17 @@ export default async function AbonnementPage() {
 
               {user ? (
                 <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-                  <Link
-                    href={`/api/subscriptions/checkout?plan=${plan.key}&mode=mensuel`}
-                    className={`t-meta flex-1 rounded-[3px] px-6 py-3 text-center text-[1rem] transition-all border border-dark/20 text-dark hover:border-ochre hover:text-ochre`}
-                  >
-                    Payer {formatXof(plan.amountXof)} FCFA / mois
-                  </Link>
-                  <Link
-                    href={`/api/subscriptions/checkout?plan=${plan.key}&mode=une_fois`}
-                    className={`t-meta flex-1 rounded-[3px] px-6 py-3 text-center text-[1rem] transition-all ${
-                      plan.key === "pro"
-                        ? "bg-gold text-ink hover:bg-amber hover:shadow-[0_0_24px_rgba(240,185,40,0.4)]"
-                        : "border border-dark/20 text-dark hover:border-ochre hover:text-ochre"
-                    }`}
-                  >
-                    Payer {formatXof(plan.prixTroisMoisXof)} FCFA en une fois
-                  </Link>
+                  <SubscribeButton
+                    plan={plan.key}
+                    mode="mensuel"
+                    label={`Payer ${formatXof(plan.amountXof)} / mois`}
+                  />
+                  <SubscribeButton
+                    plan={plan.key}
+                    mode="une_fois"
+                    label={`Payer ${formatXof(plan.prixTroisMoisXof)} en une fois`}
+                    highlighted={plan.key === "pro"}
+                  />
                 </div>
               ) : (
                 <Link
@@ -163,6 +184,7 @@ export default async function AbonnementPage() {
           );
         })}
       </div>
+      )}
     </div>
   );
 }
