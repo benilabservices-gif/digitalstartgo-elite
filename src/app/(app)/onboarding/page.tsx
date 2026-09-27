@@ -71,6 +71,12 @@ export default function OnboardingPage() {
       return;
     }
 
+    try {
+      await fetch("/api/onboarding/complete", { method: "POST" });
+    } catch {
+      // silencieux
+    }
+
     router.push("/diagnostic");
     router.refresh();
   }

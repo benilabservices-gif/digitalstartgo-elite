@@ -43,19 +43,17 @@ export function CoachReviewForm({ submissionId }: CoachReviewFormProps) {
 
     const trimmedFeedback = feedback.trim();
 
-    const { error } = await supabase
-      .from("mission_submissions")
-      .update({
-        statut: decision,
-        feedback_coach: trimmedFeedback.length > 0 ? trimmedFeedback : null,
-        corrige_par: user.id,
-      })
-      .eq("id", submissionId);
+    const res = await fetch("/api/coach/review", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ submissionId, decision, feedback: trimmedFeedback }),
+    });
 
     setSubmitting(false);
 
-    if (error) {
-      setSubmitError("La revue n'a pas pu être enregistrée. Réessayez dans un instant.");
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      setSubmitError(err?.error ?? "La revue n'a pas pu être enregistrée. Réessayez dans un instant.");
       return;
     }
 
