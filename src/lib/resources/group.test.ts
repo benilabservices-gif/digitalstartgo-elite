@@ -17,6 +17,7 @@ function makeResource(overrides: Partial<ResourceRow>): ResourceRow {
     type: "guide",
     content_blocks: [],
     external_url: null,
+    file_path: null,
     order_index: 0,
     ...overrides,
   };

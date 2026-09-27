@@ -22,7 +22,7 @@ export default async function ResourcesPage() {
 
   const { data: resources } = await supabase
     .from("resources")
-    .select("id, stage_id, slug, title, description, type, content_blocks, external_url, order_index")
+    .select("id, stage_id, slug, title, description, type, content_blocks, external_url, file_path, order_index")
     .order("order_index");
 
   const groups = groupResourcesByStage(
@@ -43,7 +43,7 @@ export default async function ResourcesPage() {
         <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-ochre">Bibliothèque</p>
         <h1 className="t-display-mid text-[clamp(1.5rem,4vw,2.25rem)] text-dark">Ressources</h1>
         <p className="mt-2 text-secondary">
-          Guides pratiques et liens utiles pour chaque étape de votre parcours.
+          Guides pratiques, fichiers à télécharger et liens utiles pour chaque étape de votre parcours.
         </p>
       </div>
 
@@ -61,9 +61,11 @@ export default async function ResourcesPage() {
                 >
                   <div className="flex items-center gap-3">
                     <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[2px] ${
-                      resource.type === "guide" ? "bg-gold/15" : "bg-ink/5"
+                      resource.type === "lien" ? "bg-ink/5" : "bg-gold/15"
                     }`}>
-                      {resource.type === "guide" ? (
+                      {resource.type === "fichier" ? (
+                        <Download className="h-4 w-4 text-ochre" />
+                      ) : resource.type === "guide" ? (
                         <FileText className="h-4 w-4 text-ochre" />
                       ) : (
                         <ExternalLink className="h-4 w-4 text-secondary" />
@@ -75,8 +77,18 @@ export default async function ResourcesPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Badge tone="default">{resource.type === "guide" ? "Guide" : "Lien"}</Badge>
-                    {resource.type === "guide" ? (
+                    <Badge tone="default">
+                      {resource.type === "fichier" ? "PDF" : resource.type === "guide" ? "Guide" : "Lien"}
+                    </Badge>
+                    {resource.type === "fichier" ? (
+                      <a
+                        href={`/api/ressources/${resource.slug}/fichier`}
+                        className="flex items-center gap-1.5 rounded-[2px] bg-gold px-3 py-1.5 text-sm font-semibold text-ink transition-all hover:bg-amber hover:shadow-[0_0_12px_rgba(240,185,40,0.3)]"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        Télécharger
+                      </a>
+                    ) : resource.type === "guide" ? (
                       <Link
                         href={`/ressources/${resource.slug}`}
                         className="flex items-center gap-1.5 rounded-[2px] bg-gold px-3 py-1.5 text-sm font-semibold text-ink transition-all hover:bg-amber hover:shadow-[0_0_12px_rgba(240,185,40,0.3)]"

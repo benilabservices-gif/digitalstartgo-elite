@@ -10,9 +10,10 @@ export interface ResourceRow {
   slug: string;
   title: string;
   description: string;
-  type: "guide" | "lien";
+  type: "guide" | "lien" | "fichier";
   content_blocks: ResourceBlock[] | null;
   external_url: string | null;
+  file_path: string | null;
   order_index: number;
 }
 
